@@ -1,2 +1,3 @@
 User-agent: *
 Disallow: /
+# seo-analytics encrypted dashboard
