@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Интерактивный отчёт по SEO-лидам и трафику медиапроектов Skillbox">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>SEO: лиды и медиатрафик</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css?v=20260918-2">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="Skillbox">
+      <img src="assets/skillbox-logo.svg" alt="Skillbox">
+    </a>
+    <div class="header-meta">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span id="as-of">Данные по 13.09.2026</span>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Аналитический отчёт</p>
+        <h1>SEO: лиды и медиатрафик</h1>
+        <p class="hero-copy">Единая динамика горячей воронки и контентных проектов. Источники — Power BI и API Яндекс Метрики.</p>
+      </div>
+      <div class="hero-mark" aria-hidden="true">SEO</div>
+    </section>
+
+    <nav class="section-tabs" aria-label="Разделы отчёта">
+      <button class="tab-button active" data-target="leads" type="button">Лиды</button>
+      <button class="tab-button" data-target="media" type="button">Медиатрафик</button>
+      <button class="tab-button" data-target="recovery" type="button">Мониторинг метатегов</button>
+      <button class="tab-button" data-target="experiment" type="button">Эксперимент: Contented</button>
+    </nav>
+
+    <section id="leads" class="dashboard-section active" aria-labelledby="leads-heading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Горячая воронка</p>
+          <h2 id="leads-heading">План и факт лидов</h2>
+        </div>
+      </div>
+
+      <div id="lead-kpis" class="kpi-grid" aria-live="polite"></div>
+
+      <article class="chart-card">
+        <div class="chart-filter-bar" aria-label="Фильтры графика лидов">
+          <div class="filter-copy">
+            <span class="filter-index">1</span>
+            <div><strong>Настройте график</strong><p>Проект, детализация и период.</p></div>
+          </div>
+          <div class="controls-row chart-controls">
+            <label class="select-control project-control"><span>Проект</span><select id="lead-entity"></select></label>
+            <label class="select-control project-control" id="lead-page-control" hidden><span>Страницы</span><select id="lead-page" aria-label="Группа страниц лида"></select></label>
+            <label class="select-control grain-control"><span>Детализация</span><select id="lead-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
+            <label class="date-control"><span>Дата с</span><input id="lead-date-from" type="date"></label>
+            <label class="date-control"><span>Дата по</span><input id="lead-date-to" type="date"></label>
+          </div>
+        </div>
+        <div class="card-heading chart-heading-safe">
+          <div>
+            <h3 id="lead-chart-title">Динамика лидов</h3>
+            <p id="lead-chart-note"></p>
+          </div>
+          <div class="legend" aria-label="Легенда">
+            <span id="lead-legend-plan"><i class="legend-line plan"></i>План</span>
+            <span><i class="legend-line fact"></i>Факт</span>
+          </div>
+        </div>
+        <div id="lead-audit" hidden aria-live="polite">
+          <div id="lead-month-kpis" class="mini-kpis"></div>
+          <p id="lead-audit-note" class="rec-growth-note"></p>
+        </div>
+        <div id="lead-chart" class="chart" role="img" aria-label="График плана и факта лидов"></div>
+      </article>
+
+      <article class="chart-card" id="lead-blog-card" hidden>
+        <div class="card-heading chart-heading-safe">
+          <div>
+            <h3 id="lead-blog-title">Блог: трафик и лиды</h3>
+            <p id="lead-blog-note"></p>
+          </div>
+          <div class="legend" aria-label="Легенда блога">
+            <span><i class="legend-line fact"></i>Визиты блога</span>
+          </div>
+        </div>
+        <div id="lead-blog-kpis" class="mini-kpis"></div>
+        <div id="lead-blog-chart" class="chart" role="img" aria-label="Трафик блога по дням"></div>
+      </article>
+
+      <article class="table-card">
+        <div class="card-heading">
+          <div>
+            <h3 id="lead-summary-title">Сводка за сентябрь</h3>
+            <p id="lead-summary-note">Только SEO-канал в согласованной методологии каждого отчёта. План — за указанные дни.</p>
+          </div>
+          <div class="exec-legend" aria-hidden="true">
+            <span class="exec-badge exec-good">от 100%</span>
+            <span class="exec-badge exec-mid">90–99,9%</span>
+            <span class="exec-badge exec-low">ниже 90%</span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Проект</th><th>План</th><th>Факт</th><th>Отклонение</th><th>Выполнение</th><th>Прогноз на месяц</th><th>YoY</th></tr></thead>
+            <tbody id="lead-summary"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="chart-card direction-card">
+        <div class="chart-filter-bar" aria-label="Фильтры графика направлений">
+          <div class="filter-copy">
+            <span class="filter-index">2</span>
+            <div><strong>Настройте направление</strong><p>Направление, детализация и период.</p></div>
+          </div>
+          <div class="controls-row chart-controls">
+            <label class="select-control project-control"><span>Направление</span><select id="direction-select"></select></label>
+            <label class="select-control grain-control"><span>Детализация</span><select id="direction-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
+            <label class="date-control"><span>Дата с</span><input id="direction-date-from" type="date"></label>
+            <label class="date-control"><span>Дата по</span><input id="direction-date-to" type="date"></label>
+          </div>
+        </div>
+        <div class="card-heading chart-heading-safe">
+          <div><h3>Skillbox core по направлениям</h3><p id="direction-chart-note">План и факт лидов.</p></div>
+          <div class="legend" aria-label="Легенда">
+            <span><i class="legend-line plan"></i>План</span>
+            <span><i class="legend-line fact"></i>Факт</span>
+          </div>
+        </div>
+        <div id="direction-kpis" class="mini-kpis"></div>
+        <div id="direction-chart" class="chart" role="img" aria-label="Динамика лидов выбранного направления"></div>
+      </article>
+
+      <article class="table-card">
+        <div class="card-heading">
+          <div>
+            <h3>Направления core: выполнение плана</h3>
+            <p id="direction-summary-note"></p>
+          </div>
+          <div class="exec-legend" aria-hidden="true">
+            <span class="exec-badge exec-good">от 100%</span>
+            <span class="exec-badge exec-mid">90–99,9%</span>
+            <span class="exec-badge exec-low">ниже 90%</span>
+          </div>
+        </div>
+        <div class="table-wrap direction-summary-wrap">
+          <table>
+            <thead><tr><th>Направление</th><th>План</th><th>Факт</th><th>Отклонение</th><th>Выполнение</th><th>Прогноз на месяц</th><th>YoY</th></tr></thead>
+            <tbody id="direction-summary"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="media" class="dashboard-section" aria-labelledby="media-heading">
+      <div class="section-heading media-section-heading">
+        <div>
+          <p class="eyebrow">Яндекс Метрика</p>
+          <h2 id="media-heading">SEO и прямой трафик</h2>
+        </div>
+      </div>
+
+      <div id="media-kpis" class="kpi-grid" aria-live="polite"></div>
+
+      <article class="chart-card media-chart-card">
+        <div class="chart-filter-bar" aria-label="Фильтры медиатрафика">
+          <div class="filter-copy">
+            <span class="filter-index">1</span>
+            <div><strong>Настройте график</strong><p>Медиапроект, редакция, детализация и период.</p></div>
+          </div>
+          <div class="controls-row chart-controls">
+            <label class="select-control project-control"><span>Медиапроект</span><select id="media-project"></select></label>
+            <label id="media-section-control" class="select-control project-control"><span>Редакция</span><select id="media-section"></select></label>
+            <label class="select-control grain-control"><span>Детализация</span><select id="media-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
+            <label class="date-control"><span>Дата с</span><input id="media-date-from" type="date"></label>
+            <label class="date-control"><span>Дата по</span><input id="media-date-to" type="date"></label>
+          </div>
+        </div>
+        <div class="card-heading media-chart-heading">
+          <div class="chart-copy">
+            <h3 id="media-chart-title">SEO и прямой трафик</h3>
+            <p id="media-chart-note">Визиты, последний значимый источник.</p>
+          </div>
+          <div class="legend" aria-label="Легенда">
+            <span><i class="legend-line seo"></i>SEO</span>
+            <span><i class="legend-line direct"></i>Прямой</span>
+          </div>
+        </div>
+        <div id="media-chart" class="chart" role="img" aria-label="График SEO и прямых визитов"></div>
+      </article>
+
+      <div class="split-grid">
+        <article class="table-card">
+          <div class="card-heading"><div><h3>По месяцам</h3><p id="media-monthly-note">За выбранный период.</p></div></div>
+          <div class="table-wrap compact">
+            <table>
+              <thead><tr><th>Месяц</th><th>SEO</th><th>Прямой</th><th>Доля SEO</th></tr></thead>
+              <tbody id="media-monthly"></tbody>
+            </table>
+          </div>
+        </article>
+        <article id="editorial-card" class="table-card">
+          <div class="card-heading"><div><h3>Редакции Skillbox Media</h3><p id="editorial-summary-note">Итоги за выбранный период.</p></div></div>
+          <div class="table-wrap compact editorial-table">
+            <table>
+              <thead><tr><th>Редакция</th><th>SEO</th><th>Прямой</th></tr></thead>
+              <tbody id="editorial-summary"></tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="recovery" class="dashboard-section" aria-labelledby="recovery-heading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Яндекс Метрика 45205785 · Когорта «Не восстановилась»</p>
+          <h2 id="recovery-heading">Мониторинг метатегов</h2>
+        </div>
+      </div>
+
+      <div id="rec-kpis" class="kpi-grid" aria-live="polite"></div>
+
+      <article class="chart-card">
+        <div class="chart-filter-bar" aria-label="Фильтры мониторинга метатегов">
+          <div class="filter-copy">
+            <span class="filter-index">1</span>
+            <div><strong>Настройте график</strong><p>Страница когорты, поисковая система, детализация и период.</p></div>
+          </div>
+          <div class="controls-row chart-controls">
+            <label class="select-control project-control rec-page-control">
+              <span>Страница</span>
+              <input id="rec-page-search" type="search" placeholder="Поиск по адресу страницы" autocomplete="off">
+              <select id="rec-page" aria-label="Страница для графика"></select>
+            </label>
+            <label class="select-control project-control"><span>Источник</span><select id="rec-engine"></select></label>
+            <label class="select-control grain-control"><span>Детализация</span><select id="rec-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
+            <label class="date-control"><span>Дата с</span><input id="rec-date-from" type="date"></label>
+            <label class="date-control"><span>Дата по</span><input id="rec-date-to" type="date"></label>
+          </div>
+        </div>
+        <div class="card-heading chart-heading-safe">
+          <div>
+            <h3 id="rec-chart-title">SEO-визиты когорты</h3>
+            <p id="rec-chart-note"></p>
+            <p id="rec-url-line" class="rec-url-line"></p>
+          </div>
+          <div class="legend rec-legend" id="rec-legend" aria-label="Легенда"></div>
+        </div>
+        <label id="rec-compare-control" class="rec-compare" hidden><input type="checkbox" id="rec-compare"><span>Сравнить: весь SEO, Google и Яндекс</span></label>
+        <div id="rec-chart" class="chart" role="img" aria-label="График визитов из поисковых систем по выбранному срезу"></div>
+      </article>
+
+      <article id="rec-growth-section" class="chart-card rec-growth-section" aria-labelledby="rec-growth-title">
+        <div class="card-heading">
+          <div><h3 id="rec-growth-title">Выросли и не выросли</h3><p id="rec-growth-rule" aria-live="polite"></p></div>
+        </div>
+        <div class="chart-filter-bar" aria-label="Фильтры графиков групп страниц">
+          <div class="filter-copy"><span class="filter-index">2</span><div><strong>Настройте графики групп</strong><p>Источник, детализация и период общие с графиком выше. Группы всегда считаются по всему списку страниц.</p></div></div>
+          <div class="controls-row chart-controls">
+            <label class="select-control project-control"><span>Источник</span><select id="rec-groups-engine"></select></label>
+            <label class="select-control grain-control"><span>Детализация</span><select id="rec-groups-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
+            <label class="date-control"><span>Дата с</span><input id="rec-groups-date-from" type="date"></label>
+            <label class="date-control"><span>Дата по</span><input id="rec-groups-date-to" type="date"></label>
+          </div>
+        </div>
+        <div class="rec-growth-grid">
+          <section class="rec-growth-card" aria-labelledby="rec-grown-title">
+            <h4 id="rec-grown-title">Выросли</h4>
+            <p id="rec-grown-count" class="rec-growth-count" aria-live="polite">—</p>
+            <p id="rec-grown-stats" class="rec-growth-stats"></p>
+            <div id="rec-grown-chart" class="chart" role="img" aria-label="Суммарные визиты страниц с ростом"></div>
+            <button type="button" class="link-button" data-growth-group="grown">Показать страницы группы</button>
+          </section>
+          <section class="rec-growth-card" aria-labelledby="rec-notgrown-title">
+            <h4 id="rec-notgrown-title">Не выросли</h4>
+            <p id="rec-notgrown-count" class="rec-growth-count" aria-live="polite">—</p>
+            <p id="rec-notgrown-stats" class="rec-growth-stats"></p>
+            <div id="rec-notgrown-chart" class="chart" role="img" aria-label="Суммарные визиты страниц без роста"></div>
+            <button type="button" class="link-button" data-growth-group="notgrown">Показать страницы группы</button>
+          </section>
+        </div>
+        <p id="rec-growth-note" class="rec-growth-note"></p>
+      </article>
+
+      <article class="table-card">
+        <div class="card-heading">
+          <div>
+            <h3>Поисковые системы</h3>
+            <p id="rec-engine-note"></p>
+          </div>
+        </div>
+        <div class="table-wrap compact">
+          <table>
+            <thead><tr><th>Поисковая система</th><th>Визиты</th><th>Доля SEO</th></tr></thead>
+            <tbody id="rec-engine-body"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="table-card">
+        <div class="card-heading">
+          <div>
+            <h3>Страницы когорты</h3>
+            <p id="rec-pages-note"></p>
+          </div>
+        </div>
+        <div class="rec-pages-tools">
+          <label class="select-control"><span>Группа страниц</span><select id="rec-table-group"><option value="all">Все страницы</option><option value="grown">Выросли</option><option value="notgrown">Не выросли</option><option value="unclassified">Недостаточно данных</option></select></label>
+          <input id="rec-pages-search" type="search" aria-label="Поиск в таблице страниц" placeholder="Поиск страницы по адресу" autocomplete="off">
+          <button id="rec-csv" class="rec-csv-button" type="button" title="Дневные визиты выбранной страницы и поисковой системы за выбранный период. Только данные Метрики из recovery.json — исходный Excel не публикуется.">Скачать CSV данных графика</button>
+        </div>
+        <div class="table-wrap compact">
+          <table id="rec-pages-table">
+            <thead id="rec-pages-head"><tr>
+              <th><button class="th-sort" data-sort="path" type="button">Страница</button></th>
+              <th><button class="th-sort" data-sort="period" type="button">За период</button></th>
+              <th><button class="th-sort" data-sort="pre" type="button">До, в день</button></th>
+              <th><button class="th-sort" data-sort="post" type="button">После, в день</button></th>
+              <th><button class="th-sort" data-sort="delta" type="button">После к до</button></th>
+            </tr></thead>
+            <tbody id="rec-pages-body"></tbody>
+          </table>
+        </div>
+        <div class="rec-pager">
+          <span id="rec-page-info"></span>
+          <button id="rec-page-prev" type="button">Назад</button>
+          <button id="rec-page-next" type="button">Вперёд</button>
+        </div>
+      </article>
+
+      <article class="table-card rec-method">
+        <div class="card-heading">
+          <div>
+            <h3>Методология и ограничения</h3>
+            <p>Что именно измеряется и чего этот отчёт не утверждает.</p>
+          </div>
+        </div>
+        <ul id="rec-method-list"></ul>
+      </article>
+    </section>
+
+    <section id="experiment" class="dashboard-section" aria-labelledby="experiment-heading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Contented · 01.06–15.09.2026</p>
+          <h2 id="experiment-heading">Эксперимент: доработка лендингов (вайбкодинг)</h2>
+        </div>
+      </div>
+
+      <article class="chart-card">
+        <div class="chart-filter-bar" aria-label="Фильтры эксперимента">
+          <div class="filter-copy">
+            <span class="filter-index">1</span>
+            <div><strong>Настройте график</strong><p>Метрика, детализация и период. Каждая линия — свой продукт.</p></div>
+          </div>
+          <div class="controls-row chart-controls">
+            <label class="select-control project-control"><span>Курс</span><select id="exp-product" aria-label="Курс эксперимента"></select></label>
+            <label class="select-control project-control"><span>Метрика</span><select id="exp-metric">
+              <option value="visits">Визиты</option>
+              <option value="leads">Лиды</option>
+              <option value="cr1">CR1 (лиды к визитам)</option>
+              <option value="sales">Продажи</option>
+              <option value="cr2">CR2 (продажи к лидам)</option>
+              <option value="revenue">Выручка</option>
+            </select></label>
+            <label class="select-control grain-control"><span>Детализация</span><select id="exp-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
+            <label class="date-control"><span>Дата с</span><input id="exp-date-from" type="date"></label>
+            <label class="date-control"><span>Дата по</span><input id="exp-date-to" type="date"></label>
+          </div>
+        </div>
+        <div class="card-heading chart-heading-safe">
+          <div>
+            <h3 id="exp-chart-title">Динамика метрики</h3>
+            <p id="exp-chart-note"></p>
+          </div>
+          <div class="legend" id="exp-legend" aria-label="Легенда продуктов"></div>
+        </div>
+        <div id="exp-chart" class="chart" role="img" aria-label="График метрик эксперимента по продуктам"></div>
+      </article>
+
+      <article class="table-card">
+        <div class="card-heading">
+          <div>
+            <h3>Продукты: все метрики за период</h3>
+            <p id="exp-table-note"></p>
+          </div>
+        </div>
+        <div class="table-wrap compact">
+          <table>
+            <thead><tr><th>Продукт</th><th>Визиты</th><th>Лиды</th><th>CR1</th><th>Продажи</th><th>CR2</th><th>Выручка</th></tr></thead>
+            <tbody id="exp-table-body"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="table-card">
+        <div class="card-heading">
+          <div>
+            <h3>Результаты с запуска нового лендинга</h3>
+            <p id="exp-results-note"></p>
+          </div>
+          <div class="exec-legend" aria-hidden="true">
+            <span class="exec-badge exec-good">от 100%</span>
+            <span class="exec-badge exec-mid">90–99,9%</span>
+            <span class="exec-badge exec-low">ниже 90%</span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="exp-results-head"><tr><th>Метрика</th><th>Курс</th><th>Курс</th><th>Курс</th></tr></thead>
+            <tbody id="exp-results-body"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="table-card rec-method">
+        <div class="card-heading">
+          <div>
+            <h3>Методология эксперимента</h3>
+            <p>Что измеряется и чего этот отчёт не утверждает.</p>
+          </div>
+        </div>
+        <ul id="exp-method-list"></ul>
+      </article>
+    </section>
+  </main>
+
+  <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+  <footer>
+    <span>Skillbox Analytics</span>
+    <span>Power BI · Яндекс Метрика</span>
+  </footer>
+  <script src="app.js?v=20260918-2" defer></script>
+  <script src="recovery.js?v=20260918-2" defer></script>
+  <script src="experiment.js?v=20260918-2" defer></script>
+</body>
+</html>
