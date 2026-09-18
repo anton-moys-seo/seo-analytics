@@ -727,3 +727,5 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+// Ключ дописали в адрес той же вкладки — единственный способ увидеть данные: перезагрузиться.
+window.addEventListener('hashchange', () => { if (!state.data && location.hash.replace(/^#/, '').trim()) location.reload(); });
