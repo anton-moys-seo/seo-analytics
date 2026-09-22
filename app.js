@@ -722,7 +722,11 @@ async function init() {
     bindChartControls('direction', 'directionGranularity', 'directionFrom', 'directionTo', renderDirection);
     bindChartControls('media', 'mediaGranularity', 'mediaFrom', 'mediaTo', renderMedia);
   } catch (error) {
-    document.querySelector('main').innerHTML = `<div class="empty">${error.message}</div>`;
+    // loadJSON already renders a helpful lock screen for missing/invalid keys.
+    // Do not replace it with the raw NO_KEY/BAD_KEY exception text.
+    if (!['NO_KEY', 'BAD_KEY'].includes(error.message)) {
+      document.querySelector('main').innerHTML = `<div class="empty">${error.message}</div>`;
+    }
   }
 }
 
