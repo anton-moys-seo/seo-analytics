@@ -539,7 +539,7 @@ function renderForecast() {
     `<span class="mini-kpi">Октябрь · сценарий «тренд» <b>${formatInt(fc.total.octTrend)}</b></span>`,
     `<span class="mini-kpi">Октябрь · сценарий «сезонность» <b>${formatInt(fc.total.octSeasonal)}</b></span>`,
   ].join('');
-  $('#forecast-projects-note').textContent = `Факт по ${formatDate(meta.asOf)}; итог сентября = факт + ставка последних 7 дней × ${meta.sepRemainingDays} дн.; октябрь = 31 день.`;
+  $('#forecast-projects-note').textContent = `Факт по ${formatDate(meta.asOf)}; итог сентября = факт + ставка последних 7 дней × ${meta.sepRemainingDays} дн. (${nf.format(meta.sepTailFactor)} «средних» дня с учётом дней недели); октябрь — 31 календарный день ≈ ${nf.format(meta.octFactor)} «средних».`;
   $('#forecast-directions-note').textContent = `Тринадцать направлений горячей воронки core (сумма = Skillbox core) · факт по ${formatDate(meta.asOf)}.`;
   $('#forecast-projects').innerHTML = fc.projects.map((row) => forecastRow(row, false)).join('') + forecastRow(fc.total, true);
   $('#forecast-directions').innerHTML = fc.directions.map((row) => forecastRow(row, false)).join('') + forecastRow(fc.directionsTotal, true);
