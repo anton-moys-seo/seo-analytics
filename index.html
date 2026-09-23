@@ -32,6 +32,7 @@
 
     <nav class="section-tabs" aria-label="Разделы отчёта">
       <button class="tab-button active" data-target="leads" type="button">Лиды</button>
+      <button class="tab-button" data-target="forecast" type="button">Прогноз: октябрь</button>
       <button class="tab-button" data-target="media" type="button">Медиатрафик</button>
       <button class="tab-button" data-target="recovery" type="button">Мониторинг метатегов</button>
       <button class="tab-button" data-target="experiment" type="button">Эксперимент: Contented</button>
@@ -154,6 +155,57 @@
             <tbody id="direction-summary"></tbody>
           </table>
         </div>
+      </article>
+    </section>
+
+    <section id="forecast" class="dashboard-section" aria-labelledby="forecast-heading">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Октябрь 2026 · два сценария</p>
+          <h2 id="forecast-heading">Прогноз лидов SEO на октябрь</h2>
+        </div>
+      </div>
+
+      <div id="forecast-kpis" class="mini-kpis" aria-live="polite"></div>
+
+      <article class="table-card">
+        <div class="card-heading">
+          <div>
+            <h3>Шесть проектов: итог сентября и прогноз октября</h3>
+            <p id="forecast-projects-note">Факт — по дате среза; досчёт — ставка последних 7 дней на остаток месяца.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Проект</th><th>Июль</th><th>Август</th><th>Сентябрь: факт</th><th>Досчёт</th><th>Итог сентября</th><th>Тренд сен/авг</th><th>Октябрь: тренд</th><th>Октябрь: сезонность</th><th>Сезонный коэф.</th></tr></thead>
+            <tbody id="forecast-projects"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="table-card">
+        <div class="card-heading">
+          <div>
+            <h3>Направления Skillbox core</h3>
+            <p id="forecast-directions-note">Тринадцать направлений горячей воронки core; Дизайн и Нейросети разделены.</p>
+          </div>
+        </div>
+        <div class="table-wrap direction-summary-wrap">
+          <table>
+            <thead><tr><th>Направление</th><th>Июль</th><th>Август</th><th>Сентябрь: факт</th><th>Досчёт</th><th>Итог сентября</th><th>Тренд сен/авг</th><th>Октябрь: тренд</th><th>Октябрь: сезонность</th><th>Сезонный коэф.</th></tr></thead>
+            <tbody id="forecast-directions"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="table-card">
+        <div class="card-heading">
+          <div>
+            <h3>Методология</h3>
+            <p>Как считаны досчёт сентября и оба прогноза октября; сценарии не смешиваются — после факта октября их нужно откалибровать.</p>
+          </div>
+        </div>
+        <ol id="forecast-method-list" class="forecast-method-list"></ol>
       </article>
     </section>
 
