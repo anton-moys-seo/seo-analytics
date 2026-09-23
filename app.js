@@ -5,6 +5,7 @@ const state = {
   mediaId: 'skillbox-media', mediaSection: 'Все /media/', mediaGranularity: 'day', mediaFrom: null, mediaTo: null,
   blog: undefined, // undefined — ещё не запрашивался; null — недоступен; object — blog.json
   yoy: undefined, // undefined — ещё не запрашивался; null — недоступен; object — yoy.json
+  forecast: undefined, // undefined — ещё не запрашивался; null — недоступен; object — forecast.json
 };
 const $ = (selector) => document.querySelector(selector);
 const nf = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
@@ -499,6 +500,53 @@ function renderDirectionSummary() {
   $('#direction-summary-note').textContent = `Все направления Skillbox core · SEO · ${period} · период берётся из фильтров графика направлений. Направления без плана — в конце таблицы. Прогноз — оценка на конец месяца по последним 7 полным дням.`;
 }
 
+const FC_COEF_SOURCE = { own: 'сезонность этого направления в 2025', core: 'база прошлого года мала — взят коэффициент core', neutral: 'прошлый год — фаза запуска, коэффициент 1,00' };
+
+function forecastTrendCell(row) {
+  if (row.trendPct === null || row.trendPct === undefined) return '<span class="fc-trend side">—</span>';
+  const cls = row.trendLabel === 'рост' ? 'up' : row.trendLabel === 'падение' ? 'down' : 'side';
+  const arrow = cls === 'up' ? '▲' : cls === 'down' ? '▼' : '→';
+  const sign = row.trendPct > 0 ? '+' : '';
+  return `<span class="fc-trend ${cls}">${arrow} ${sign}${nf.format(row.trendPct)}%</span>`;
+}
+
+function forecastCoefCell(row) {
+  if (row.seasonalCoef === null || row.seasonalCoef === undefined) return '<span aria-label="нет данных">—</span>';
+  const hint = FC_COEF_SOURCE[row.seasonalSource] || '';
+  return `<span class="fc-coef" title="${hint}">×${nf.format(row.seasonalCoef)}</span>`;
+}
+
+function forecastRow(row, total) {
+  return `<tr${total ? ' class="direction-total"' : ''}>`
+    + `<td>${row.name}</td>`
+    + `<td>${formatInt(row.jul)}</td><td>${formatInt(row.aug)}</td>`
+    + `<td>${formatInt(row.sepFact)}</td>`
+    + `<td class="fc-soft">+${formatInt(row.sepRemaining)}</td>`
+    + `<td><b>${formatInt(row.sepEom)}</b></td>`
+    + `<td>${forecastTrendCell(row)}</td>`
+    + `<td class="fc-a">${formatInt(row.octTrend)}</td>`
+    + `<td class="fc-b">${formatInt(row.octSeasonal)}</td>`
+    + `<td>${forecastCoefCell(row)}</td></tr>`;
+}
+
+function renderForecast() {
+  const fc = state.forecast;
+  if (!fc) return;
+  const meta = fc.meta;
+  $('#forecast-kpis').innerHTML = [
+    `<span class="mini-kpi">Итог сентября, 6 проектов <b>${formatInt(fc.total.sepEom)}</b></span>`,
+    `<span class="mini-kpi">Досчёт ${formatDate(meta.sepRemainFrom)}–${formatDate(meta.sepRemainTo)} · ставка недели ${formatDate(meta.sepWindow[0])}–${formatDate(meta.sepWindow[1])} <b>+${formatInt(fc.total.sepRemaining)}</b></span>`,
+    `<span class="mini-kpi">Октябрь · сценарий «тренд» <b>${formatInt(fc.total.octTrend)}</b></span>`,
+    `<span class="mini-kpi">Октябрь · сценарий «сезонность» <b>${formatInt(fc.total.octSeasonal)}</b></span>`,
+  ].join('');
+  $('#forecast-projects-note').textContent = `Факт по ${formatDate(meta.asOf)}; итог сентября = факт + ставка последних 7 дней × ${meta.sepRemainingDays} дн.; октябрь = 31 день.`;
+  $('#forecast-directions-note').textContent = `Тринадцать направлений горячей воронки core (сумма = Skillbox core) · факт по ${formatDate(meta.asOf)}.`;
+  $('#forecast-projects').innerHTML = fc.projects.map((row) => forecastRow(row, false)).join('') + forecastRow(fc.total, true);
+  $('#forecast-directions').innerHTML = fc.directions.map((row) => forecastRow(row, false)).join('') + forecastRow(fc.directionsTotal, true);
+  const list = $('#forecast-method-list');
+  list.innerHTML = meta.methodology.map((item) => `<li>${item}</li>`).join('');
+}
+
 function currentMediaSeries() {
   const project = state.data.media.projects.find((item) => item.id === state.mediaId);
   if (project.id === 'skillbox-media' && state.mediaSection !== 'Все /media/') {
@@ -598,7 +646,7 @@ function loadUrlState() {
   const params = new URLSearchParams(location.search);
   const grains = ['day', 'week', 'month'];
   const dateParam = (name) => /^\d{4}-\d{2}-\d{2}$/.test(params.get(name) || '') ? params.get(name) : null;
-  if (['leads', 'media', 'recovery', 'experiment'].includes(params.get('view'))) state.view = params.get('view');
+  if (['leads', 'media', 'recovery', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
   if (state.data.leads.entities.some((item) => item.id === params.get('lead'))) state.leadId = params.get('lead');
   if (params.get('page')) {
     const entity = state.data.leads.entities.find((item) => item.id === state.leadId);
@@ -655,6 +703,7 @@ function activateView(target, syncUrl = true) {
   if (target === 'recovery') { if (window.renderRecovery) window.renderRecovery(); }
   else if (target === 'experiment') { if (window.renderExperiment) window.renderExperiment(); }
   else if (target === 'media') renderMedia();
+  else if (target === 'forecast') renderForecast();
   else { renderLead(); renderDirection(); }
   if (syncUrl) updateUrl();
 }
@@ -703,6 +752,12 @@ async function init() {
         .then((data) => { state.yoy = data; })
         .catch(() => { state.yoy = null; })
         .finally(() => { if (state.view === 'leads') { renderLeadSummary(); renderDirectionSummary(); } });
+    }
+    if (state.forecast === undefined) {
+      loadJSON('forecast.json')
+        .then((data) => { state.forecast = data; })
+        .catch(() => { state.forecast = null; })
+        .finally(() => { if (state.view === 'forecast') renderForecast(); });
     }
     window.addEventListener('resize', () => {
       if (state.view === 'leads' && ['spo', 'kids'].includes(state.leadId)) renderLead();
