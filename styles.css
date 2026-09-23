@@ -79,7 +79,7 @@ footer{max-width:1440px;margin:0 auto;padding:32px;display:flex;justify-content:
 .fc-trend.down{background:#F7C6C6;color:#000000}
 .fc-trend.side{background:#F5F5F5;color:#000000}
 .fc-soft{color:#666666}
-.fc-a,.fc-b{font-weight:600}
+.fc-a,.fc-b,.fc-d{font-weight:600}
 .fc-coef{cursor:help;border-bottom:1px dashed #999999}
 .forecast-method-list{margin:0;padding:20px 32px 24px 52px;font-size:14px;line-height:1.55;display:flex;flex-direction:column;gap:10px}
 .forecast-method-list li::marker{font-weight:600;color:#3D3BFF}
