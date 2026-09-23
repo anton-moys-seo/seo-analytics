@@ -73,3 +73,13 @@ footer{max-width:1440px;margin:0 auto;padding:32px;display:flex;justify-content:
 @media (max-width:1000px){.rec-growth-grid{grid-template-columns:1fr;gap:48px}.rec-growth-count{font-size:34px}}
 @media (max-width:1000px){.hero h1{font-size:44px}.hero-mark{font-size:80px}.kpi-grid{grid-template-columns:repeat(2,1fr)}.split-grid{grid-template-columns:1fr}.section-heading{align-items:flex-start;flex-direction:column}.controls-row{width:100%;flex-wrap:wrap}.select-control{flex:1}.chart-filter-bar{position:static}.chart-heading-safe,.media-chart-heading{grid-template-columns:minmax(0,1fr) auto}.chart{min-height:360px}}
 @media (max-width:640px){.site-header{padding:0 16px;height:64px}.brand img{width:112px}.header-meta{font-size:12px}.page-shell{padding:16px 16px 48px}.hero{min-height:320px;padding:32px 24px;align-items:flex-start;flex-direction:column}.hero h1{font-size:40px}.hero-mark{font-size:64px;align-self:flex-end}.section-tabs{margin:24px 0 40px;flex-wrap:wrap}.section-heading h2{font-size:34px}.kpi-grid{grid-template-columns:1fr}.chart-card{padding:24px 16px}.card-heading{flex-direction:column}.card-heading h3{font-size:24px}.chart-filter-bar{padding:18px 16px}.chart-heading-safe,.media-chart-heading{display:flex;flex-direction:column;gap:14px}.chart-heading-safe h3,.media-chart-heading .chart-copy h3{font-size:24px}.chart-heading-safe .legend,.media-chart-heading .legend{padding-top:0;white-space:normal}.chart{min-height:300px}.controls-row{flex-direction:column}.select-control,.date-control,.chart-controls .project-control,.chart-controls .grain-control{width:100%;min-width:0;max-width:none;flex:1 1 auto}footer{padding:24px 16px;flex-direction:column}.table-wrap{margin:0 -4px}.rec-method{padding:24px 16px}.rec-pages-tools{margin:0 12px 12px}.rec-pager{padding:12px;justify-content:space-between}}
+/* Прогноз: октябрь */
+.fc-trend{display:inline-block;min-width:76px;padding:4px 12px;border-radius:999px;font-weight:500;text-align:center;white-space:nowrap}
+.fc-trend.up{background:#B8E8B6;color:#000000}
+.fc-trend.down{background:#F7C6C6;color:#000000}
+.fc-trend.side{background:#F5F5F5;color:#000000}
+.fc-soft{color:#666666}
+.fc-a,.fc-b{font-weight:600}
+.fc-coef{cursor:help;border-bottom:1px dashed #999999}
+.forecast-method-list{margin:0;padding:20px 32px 24px 52px;font-size:14px;line-height:1.55;display:flex;flex-direction:column;gap:10px}
+.forecast-method-list li::marker{font-weight:600;color:#3D3BFF}
