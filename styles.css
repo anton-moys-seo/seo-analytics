@@ -45,14 +45,8 @@ footer{max-width:1440px;margin:0 auto;padding:32px;display:flex;justify-content:
 .rec-legend{padding-top:8px}
 .legend-line.rec-google{background:#000000}.legend-line.rec-yandex{background:transparent;height:0;border-top:3px dashed #000000}
 .chart .rec-line-google{fill:none;stroke:#000000;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-.chart .exp-line-third{fill:none;stroke:#968BAB;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .chart .exp-event-line{stroke:#000000;stroke-width:1.5;stroke-dasharray:4 4;pointer-events:none}
-.chart .exp-event-line.event-interior{stroke:#3D3BFF}
-.chart .exp-event-line.event-gamedesign{stroke:#968BAB}
 .chart .exp-event-label{fill:#000000;font-family:Graphik,sans-serif;font-size:12px;font-weight:500}
-.chart .exp-event-label.event-interior{fill:#3D3BFF}
-.chart .exp-event-label.event-gamedesign{fill:#968BAB}
-.legend-line.exp-legend-third{background:#968BAB}
 .chart .rec-change-line{stroke:#000000;stroke-width:1.5;stroke-dasharray:4 4;pointer-events:none}
 .chart .rec-change-label{fill:#000000;font-family:Graphik,sans-serif;font-size:12px;font-weight:500}
 .link-button{background:none;border:0;padding:0;font:inherit;font-weight:500;color:inherit;text-decoration:underline;cursor:pointer}.link-button:hover{color:#3D3BFF}
