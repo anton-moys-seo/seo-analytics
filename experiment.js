@@ -1,4 +1,4 @@
-/* Эксперимент: доработка лендингов Contented (вайбкодинг). Данные — experiment.json.
+/* Эксперимент: вайбкодинг (Contented, Skillfactory, Skillbox Kids). Данные — experiment.json.
    Работает поверх глобальных хелперов app.js, не меняя другие разделы. */
 (function () {
   'use strict';
@@ -17,9 +17,6 @@
     cr2: { name: 'CR2', format: (v) => v === null ? '—' : pctf.format(v) },
     revenue: { name: 'Выручка', format: (v) => formatInt(Math.round(v)) },
   };
-  const LINE_CLASSES = ['line-primary', 'line-black', 'exp-line-third'];
-  // Даты выкатки новых версий лендингов — по информации пользователя.
-  const RELEASES = { interior: '2026-08-28', photo: '2026-09-09', gamedesign: '2026-08-18' };
 
   function snapDate(iso) {
     const dates = exp.data.dates;
@@ -31,9 +28,13 @@
     return before.length ? before[before.length - 1] : dates[0];
   }
 
+  function product() {
+    return exp.data.products.find((p) => p.id === exp.product) || exp.data.products[0];
+  }
+
   // CR пересчитывается по суммам периода, а не как среднее дневных долей.
-  function periodValues(product, idx) {
-    const g = (m) => sum(idx.map((i) => product[m][i]));
+  function periodValues(item, idx) {
+    const g = (m) => sum(idx.map((i) => item[m][i]));
     const visits = g('visits'), leads = g('leads'), sales = g('sales');
     return {
       visits, leads, sales, revenue: g('revenue'),
@@ -42,53 +43,38 @@
     };
   }
 
-  function bucketSeries(product) {
+  function bucketSeries(item) {
     // Возвращает ряд значений выбранной метрики по бакетам детализации.
-    // aggregateRange принимает только массив серий — объект вызывает ошибку рендера.
     const agg = (values) => aggregateRange(exp.data.dates, [{ values }], exp.from, exp.to, exp.grain);
     if (exp.metric === 'cr1' || exp.metric === 'cr2') {
-      const denom = exp.metric === 'cr1' ? agg(product.visits) : agg(product.leads);
-      const numer = exp.metric === 'cr1' ? agg(product.leads) : agg(product.sales);
+      const denom = exp.metric === 'cr1' ? agg(item.visits) : agg(item.leads);
+      const numer = exp.metric === 'cr1' ? agg(item.leads) : agg(item.sales);
       return { dates: denom.dates, values: denom.series[0].values.map((v, i) => {
         const n = numer.series[0].values[i];
         return v ? n / v : null;
       }) };
     }
-    const aggregated = agg(product[exp.metric]);
+    const aggregated = agg(item[exp.metric]);
     return { dates: aggregated.dates, values: aggregated.series[0].values };
-  }
-
-  function selectedProducts() {
-    if (exp.product === 'all') return exp.data.products;
-    return exp.data.products.filter((p) => p.id === exp.product);
   }
 
   function renderChart() {
     const container = $('#exp-chart'), legend = $('#exp-legend');
     if (exp.failed) { container.innerHTML = ''; legend.innerHTML = ''; $('#exp-chart-note').textContent = FAIL_MSG; return; }
-    const shown = selectedProducts();
-    const series = shown.map((p, i) => ({
-      name: p.name, className: LINE_CLASSES[exp.data.products.indexOf(p)], values: bucketSeries(p).values,
-    }));
-    const dates = bucketSeries(shown[0]).dates;
-    const events = shown
-      .filter((p) => RELEASES[p.id])
-      .map((p) => {
-        const key = groupDate(RELEASES[p.id], exp.grain);
-        if (!dates.includes(key)) return null;
-        const short = formatDate(RELEASES[p.id]).slice(0, 5);
-        return { key, className: `event-${p.id}`,
-                 label: exp.product === 'all' ? `${p.name} · ${short}` : `Новая версия · ${short}` };
-      })
-      .filter(Boolean);
+    const shown = product();
+    const series = [{ name: shown.name, className: 'line-primary', values: bucketSeries(shown).values }];
+    const dates = bucketSeries(shown).dates;
+    const events = [];
+    if (shown.release) {
+      const key = groupDate(shown.release, exp.grain);
+      if (dates.includes(key)) {
+        events.push({ key, label: `Новая версия · ${formatDate(shown.release).slice(0, 5)}` });
+      }
+    }
     renderLineChart(container, dates, series, { width: window.innerWidth < 640 ? 360 : 1200, events });
-    $('#exp-chart-title').textContent = `${METRICS[exp.metric].name}: ${exp.product === 'all' ? 'динамика по продуктам' : shown[0].name}`;
-    $('#exp-chart-note').textContent = `${exp.product === 'all' ? 'Все каналы' : shown[0].url} · ${formatPeriod(exp.from, exp.to)} · ${granularityLabel(exp.grain)}${exp.metric === 'cr1' || exp.metric === 'cr2' ? ' · доли пересчитаны по суммам периода' : ''}${events.length ? ` · пунктир — выкатка новой версии${exp.grain === 'day' ? '' : ' (период, включающий дату)'}` : ' · дата выкатки вне выбранного периода'}`;
-    legend.innerHTML = shown.map((p) => {
-      const index = exp.data.products.indexOf(p);
-      const swatch = index === 0 ? 'fact' : index === 1 ? 'plan' : 'exp-legend-third';
-      return `<span><i class="legend-line ${swatch}"></i>${esc(p.name)}</span>`;
-    }).join('');
+    $('#exp-chart-title').textContent = `${METRICS[exp.metric].name}: ${shown.name}`;
+    $('#exp-chart-note').textContent = `${shown.url} · ${formatPeriod(exp.from, exp.to)} · ${granularityLabel(exp.grain)}${exp.metric === 'cr1' || exp.metric === 'cr2' ? ' · доли пересчитаны по суммам периода' : ''}${events.length ? ` · пунктир — выкатка новой версии${exp.grain === 'day' ? '' : ' (период, включающий дату)'}` : ' · дата выкатки вне выбранного периода'}`;
+    legend.innerHTML = `<span><i class="legend-line fact"></i>${esc(shown.name)}</span>`;
   }
 
   function renderTable() {
@@ -109,7 +95,7 @@
     }), { visits: 0, leads: 0, sales: 0, revenue: 0 });
     totals.cr1 = totals.visits ? totals.leads / totals.visits : null;
     totals.cr2 = totals.leads ? totals.sales / totals.leads : null;
-    body.innerHTML = perProduct.map(({ p, values }) => row(p.name, values, p.url, false)).join('') + row('Все продукты', totals, null, true);
+    body.innerHTML = perProduct.map(({ p, values }) => row(p.name, values, p.url, false)).join('') + row('Все страницы', totals, null, true);
     $('#exp-table-note').textContent = `Суммы за ${formatPeriod(exp.from, exp.to)}; CR1 и CR2 пересчитаны по суммам периода.`;
   }
 
@@ -117,6 +103,8 @@
     const ul = $('#exp-method-list');
     if (exp.failed) { ul.innerHTML = `<li>${FAIL_MSG}</li>`; return; }
     const d = exp.data.meta.definitions;
+    const releases = exp.data.products.filter((p) => p.release)
+      .map((p) => `«${p.name}» — ${formatDate(p.release)}`).join(', ');
     ul.innerHTML = [
       `Визиты: ${esc(d.visits)}`,
       `Лиды: ${esc(d.leads)}`,
@@ -124,7 +112,7 @@
       `Выручка: ${esc(d.revenue)}`,
       `${esc(d.cr1)} ${esc(d.cr2)}`,
       `Период: ${formatPeriod(exp.data.meta.dateFrom, exp.data.meta.asOf)}. Лиды — дата создания; продажи и выручка — дата оплаты. Данные по состоянию на ${formatDate(exp.data.meta.asOf)}.`,
-      'Выкатка новых версий страниц (по информации пользователя): «Дизайн интерьеров» — 28.08.2026, «Фотография» — 09.09.2026, «Геймдизайн» — 18.08.2026. Пунктирная линия на графике отмечает эти даты; смена версии — лишь один из факторов динамики.',
+      `Выкатки страниц (по информации пользователя): ${releases}. Пунктирная линия на графике отмечает дату выкатки выбранной страницы; смена версии — лишь один из факторов динамики.`,
       esc(exp.data.meta.note),
     ].map((t) => `<li>${t}</li>`).join('');
   }
@@ -135,13 +123,13 @@
     const body = $('#exp-results-body'), head = $('#exp-results-head'), note = $('#exp-results-note');
     if (exp.failed) { body.innerHTML = ''; head.innerHTML = ''; note.textContent = ''; return; }
     const dates = exp.data.dates;
-    const released = exp.data.products.filter((p) => RELEASES[p.id]);
+    const released = exp.data.products.filter((p) => p.release);
     const windows = released.map((p) => {
-      const start = dates.indexOf(RELEASES[p.id]);
+      const start = dates.indexOf(p.release);
       return { product: p, before: dates.map((_, i) => i).slice(0, start), after: dates.map((_, i) => i).slice(start) };
     });
-    head.innerHTML = '<tr><th>Метрика</th>' + windows.map(({ product }) =>
-      `<th>${esc(product.name)}<br><span class="exp-results-from">после ${formatDate(RELEASES[product.id])}</span></th>`).join('') + '</tr>';
+    head.innerHTML = '<tr><th>Метрика</th>' + windows.map(({ product: p }) =>
+      `<th>${esc(p.name)}<br><span class="exp-results-from">после ${formatDate(p.release)}</span></th>`).join('') + '</tr>';
     const badge = (ratio) => {
       if (ratio === null || ratio === undefined || !isFinite(ratio)) return '—';
       const tier = ratio >= 1 ? 'good' : ratio >= 0.9 ? 'mid' : 'low';
@@ -157,24 +145,24 @@
       { name: 'Выручка, в день', m: 'revenue', fmt: (v) => v === null ? '—' : formatInt(Math.round(v)) },
     ];
     body.innerHTML = metricRows.map((metric) =>
-      `<tr><td>${metric.name}</td>${windows.map(({ product, before, after }) => {
-        const b = average(product, before, metric.m), a = average(product, after, metric.m);
+      `<tr><td>${metric.name}</td>${windows.map(({ product: p, before, after }) => {
+        const b = average(p, before, metric.m), a = average(p, after, metric.m);
         return cell(b, a, b ? a / b : null, metric.fmt);
       }).join('')}</tr>`).join('')
       + ['cr1', 'cr2'].map((metric) => {
         const label = metric === 'cr1' ? 'CR1 (лиды к визитам)' : 'CR2 (продажи к лидам)';
-        return `<tr><td>${label}</td>${windows.map(({ product, before, after }) => {
+        return `<tr><td>${label}</td>${windows.map(({ product: p, before, after }) => {
           const cr = (idx) => {
-            const visits = idx.reduce((s, i) => s + product.visits[i], 0);
-            const leads = idx.reduce((s, i) => s + product.leads[i], 0);
-            const sales = idx.reduce((s, i) => s + product.sales[i], 0);
+            const visits = idx.reduce((s, i) => s + p.visits[i], 0);
+            const leads = idx.reduce((s, i) => s + p.leads[i], 0);
+            const sales = idx.reduce((s, i) => s + p.sales[i], 0);
             return metric === 'cr1' ? (visits ? leads / visits : null) : (leads ? sales / leads : null);
           };
           const b = cr(before), a = cr(after);
           return cell(b, a, b ? a / b : null, (v) => v === null ? '—' : pctf.format(v));
         }).join('')}</tr>`;
       }).join('');
-    const spans = windows.map(({ product, before, after }) => `${product.name}: до ${before.length} дн. / после ${after.length} дн.`);
+    const spans = windows.map(({ product: p, before, after }) => `${p.name}: до ${before.length} дн. / после ${after.length} дн.`);
     note.textContent = `«До» — с ${formatDate(dates[0])} по день перед выкаткой; «после» — с даты выкатки по ${formatDate(dates[dates.length - 1])}. Абсолютные метрики — средние за день (${spans.join(' · ')}); CR — по суммам окна. Цвет — «после» к «до». Окна разной длины и разного состава дней недели; рост не доказывает эффект доработки.`;
   }
 
@@ -194,7 +182,7 @@
   function populateProductSelect() {
     const select = $('#exp-product');
     select.innerHTML = '';
-    [{ id: 'all', name: 'Все продукты вместе' }, ...exp.data.products].forEach((p) => {
+    exp.data.products.forEach((p) => {
       const option = document.createElement('option');
       option.value = p.id;
       option.textContent = p.name;
@@ -206,7 +194,7 @@
   function updateUrl() {
     const params = new URLSearchParams();
     params.set('view', 'experiment');
-    if (exp.product && exp.product !== 'all') params.set('product', exp.product);
+    if (exp.product) params.set('product', exp.product);
     params.set('metric', exp.metric);
     params.set('grain', exp.grain);
     params.set('from', exp.from);
@@ -242,7 +230,7 @@
       const raw = new URLSearchParams(location.search);
       const params = raw.get('view') === 'experiment' ? raw : new URLSearchParams();
       const productParam = params.get('product');
-      if (productParam === 'all' || exp.data.products.some((p) => p.id === productParam)) exp.product = productParam;
+      if (exp.data.products.some((p) => p.id === productParam)) exp.product = productParam;
       if (METRICS[params.get('metric')]) exp.metric = params.get('metric');
       if (['day', 'week', 'month'].includes(params.get('grain'))) exp.grain = params.get('grain');
       exp.from = snapDate(params.get('from')) || exp.from;
