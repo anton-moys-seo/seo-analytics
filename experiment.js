@@ -199,7 +199,7 @@
     params.set('grain', exp.grain);
     params.set('from', exp.from);
     params.set('to', exp.to);
-    history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
+    history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
   }
 
   function setupControls() {
