@@ -452,9 +452,12 @@
   }
 
   function updateRecoveryUrl() {
-    if (!rec.loaded) return;
     const params = new URLSearchParams();
     params.set('view', 'recovery');
+    if (!rec.loaded) {
+      history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
+      return;
+    }
     params.set('page', String(rec.pageId));
     params.set('engine', String(rec.engineId));
     params.set('grain', rec.grain);
@@ -462,7 +465,7 @@
     params.set('to', rec.to);
     if (rec.compare) params.set('compare', '1');
     if (rec.tableGroup !== 'all') params.set('group', rec.tableGroup);
-    history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
+    history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
   }
 
   function downloadCsv() {
@@ -512,7 +515,7 @@
 
   function setupControls() {
     window.addEventListener('resize', () => {
-      if (rec.loaded && !rec.failed && state.view === 'recovery') renderGrowthGroups();
+      if (rec.loaded && !rec.failed && state.view === 'recovery') { renderChart(); renderGrowthGroups(); }
     });
     // Mirror the existing shared controls immediately above the two group charts.
     for (const field of ['engine', 'granularity', 'date-from', 'date-to']) {
@@ -578,6 +581,7 @@
   }
 
   async function init() {
+    const initialParams = new URLSearchParams(location.search);
     try {
       const data = await window.loadJSON('recovery.json');
       if (!data || !Array.isArray(data.dates) || !data.dates.length || !Array.isArray(data.pages) || !data.total) {
@@ -588,8 +592,7 @@
       rec.data = data;
       rec.loaded = true;
       rec.windows = computeWindows();
-      const rawParams = new URLSearchParams(location.search);
-      const params = rawParams.get('view') === 'recovery' ? rawParams : new URLSearchParams();
+      const params = initialParams.get('view') === 'recovery' ? initialParams : new URLSearchParams();
       rec.compare = params.get('compare') === '1';
       if (['grown', 'notgrown', 'unclassified'].includes(params.get('group'))) rec.tableGroup = params.get('group');
       const defaultFrom = rec.data.dates[0] > '2026-08-01' ? rec.data.dates[0] : '2026-08-01';
