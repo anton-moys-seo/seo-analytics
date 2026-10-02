@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow, noarchive">
   <title>SEO: лиды и медиатрафик</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261001-1">
+  <link rel="stylesheet" href="styles.css?v=20261002-4">
 </head>
 <body>
   <header class="site-header">
@@ -34,9 +34,19 @@
       <button class="tab-button active" data-target="leads" type="button">Лиды</button>
       <button class="tab-button" data-target="forecast" type="button">Прогноз: октябрь</button>
       <button class="tab-button" data-target="media" type="button">Медиатрафик</button>
-      <button class="tab-button" data-target="recovery" type="button">Мониторинг метатегов</button>
       <button class="tab-button" data-target="experiment" type="button">Эксперимент: вайбкодинг</button>
     </nav>
+
+    <div id="media-navigation" hidden>
+      <nav class="nested-tabs" aria-label="Медиатрафик">
+        <button class="nested-tab" data-target="media" type="button">Трафик</button>
+        <button class="nested-tab" data-target="recovery" data-media-results type="button">Результаты</button>
+      </nav>
+      <nav id="media-results-navigation" class="nested-tabs results-tabs" aria-label="Результаты медиатрафика" hidden>
+        <button class="nested-tab" data-target="recovery" type="button">Мониторинг метатегов</button>
+        <button class="nested-tab" data-target="updates" type="button">Апдейты</button>
+      </nav>
+    </div>
 
     <section id="leads" class="dashboard-section active" aria-labelledby="leads-heading">
       <div class="section-heading">
@@ -397,6 +407,62 @@
       </article>
     </section>
 
+    <section id="updates" class="dashboard-section" aria-labelledby="updates-heading">
+      <div class="section-heading">
+        <div><p class="eyebrow">Skillbox Media · SEO-визиты</p><h2 id="updates-heading">Апдейты статей</h2></div>
+      </div>
+      <div id="upd-status" class="updates-status" role="status" aria-live="polite">Загружаем данные апдейтов.</div>
+      <div id="upd-content" hidden>
+        <article class="chart-card updates-source" aria-labelledby="upd-source-heading">
+          <div class="card-heading"><div><h3 id="upd-source-heading">Источник списка статей</h3><p id="upd-source-summary"></p></div></div>
+          <p id="upd-source-time" class="updates-help"></p>
+          <p id="upd-date-definition" class="updates-help"></p>
+          <p id="upd-history-warning" class="updates-help" hidden></p>
+          <details id="upd-excluded" class="updates-markers" hidden><summary id="upd-excluded-summary">Строки, не вошедшие в анализ</summary><ul id="upd-excluded-list"></ul></details>
+        </article>
+        <div id="upd-kpis" class="kpi-grid" aria-live="polite"></div>
+        <article id="upd-chart-card" class="chart-card">
+          <div class="chart-filter-bar" aria-label="Фильтры апдейтов">
+            <div class="filter-copy"><span class="filter-index">1</span><div><strong>Выберите когорту и период</strong><p>Месяц апдейта определяет статьи. Период трафика и окно сравнения задаются отдельно.</p></div></div>
+            <div class="controls-row chart-controls">
+              <label class="select-control project-control"><span>Месяц апдейта</span><select id="upd-month"></select></label>
+              <label class="select-control project-control rec-page-control"><span>Поиск по URL или названию</span><input id="upd-search" type="search" placeholder="Адрес или название статьи" autocomplete="off" aria-describedby="upd-search-info"></label>
+              <label class="select-control project-control"><span>Статья</span><select id="upd-article" aria-describedby="upd-search-info"></select></label>
+              <label class="select-control grain-control"><span>Окно до / после</span><select id="upd-window"><option value="7">7 дней</option><option value="14">14 дней</option><option value="28" selected>28 дней</option></select></label>
+              <label class="select-control grain-control"><span>Детализация</span><select id="upd-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
+              <label class="date-control"><span>Трафик с</span><input id="upd-date-from" type="date"></label>
+              <label class="date-control"><span>Трафик по</span><input id="upd-date-to" type="date"></label>
+            </div>
+            <p id="upd-search-info" class="updates-help" aria-live="polite"></p>
+            <div class="updates-focus"><button id="upd-focus-range" class="rec-csv-button" type="button" aria-describedby="upd-focus-note">Последние 90 дней</button><p id="upd-focus-note" class="updates-help"></p></div>
+          </div>
+          <div class="card-heading chart-heading-safe"><div><h3 id="upd-chart-title">SEO-визиты статей</h3><p id="upd-chart-note"></p></div><div class="legend"><span><i class="legend-line seo"></i>SEO-визиты</span><span><i class="legend-line rec-yandex"></i>Апдейты</span></div></div>
+          <div id="upd-chart" class="chart" role="img" aria-label="SEO-визиты выбранных статей и даты апдейтов"></div>
+          <details class="updates-markers"><summary>Даты апдейтов в периоде графика</summary><ul id="upd-events-list"></ul></details>
+        </article>
+        <article class="table-card">
+          <div class="card-heading"><div><h3>До и после апдейта</h3><p id="upd-table-note"></p></div></div>
+          <div class="table-wrap">
+            <table id="upd-table">
+              <thead id="upd-table-head"><tr>
+                <th><button class="th-sort" data-sort="title" type="button">Статья / URL</button></th>
+                <th><button class="th-sort" data-sort="date" type="button">Дата апдейта из таблицы</button></th>
+                <th><button class="th-sort" data-sort="pre" type="button">SEO до</button></th>
+                <th><button class="th-sort" data-sort="post" type="button">SEO после</button></th>
+                <th><button class="th-sort" data-sort="n" type="button">Дни сравнения</button></th>
+                <th><button class="th-sort" data-sort="avg" type="button">В день: до → после</button></th>
+                <th><button class="th-sort" data-sort="delta" type="button">Изменение</button></th>
+                <th><button class="th-sort" data-sort="status" type="button">Полнота</button></th>
+              </tr></thead>
+              <tbody id="upd-table-body"></tbody>
+            </table>
+          </div>
+          <div class="rec-pager"><span id="upd-page-info" aria-live="polite"></span><button id="upd-page-prev" type="button">Назад</button><button id="upd-page-next" type="button">Вперёд</button></div>
+        </article>
+        <article class="table-card rec-method"><div class="card-heading"><div><h3>Методология и ограничения</h3><p>Наблюдаемая динамика после обновления статьи.</p></div></div><ul id="upd-method"></ul></article>
+      </div>
+    </section>
+
     <section id="experiment" class="dashboard-section" aria-labelledby="experiment-heading">
       <div class="section-heading">
         <div>
@@ -488,8 +554,9 @@
     <span>Skillbox Analytics</span>
     <span>Power BI · Яндекс Метрика</span>
   </footer>
-  <script src="app.js?v=20260918-3" defer></script>
-  <script src="recovery.js?v=20260918-3" defer></script>
-  <script src="experiment.js?v=20261001-1" defer></script>
+  <script src="recovery.js?v=20261002-2" defer></script>
+  <script src="experiment.js?v=20261002-2" defer></script>
+  <script src="updates.js?v=20261002-7" defer></script>
+  <script src="app.js?v=20261002-2" defer></script>
 </body>
 </html>
