@@ -73,7 +73,7 @@
     }
     renderLineChart(container, dates, series, { width: window.innerWidth < 640 ? 360 : 1200, events });
     $('#exp-chart-title').textContent = `${METRICS[exp.metric].name}: ${shown.name}`;
-    $('#exp-chart-note').textContent = `${shown.url} · ${formatPeriod(exp.from, exp.to)} · ${granularityLabel(exp.grain)}${exp.metric === 'cr1' || exp.metric === 'cr2' ? ' · доли пересчитаны по суммам периода' : ''}${events.length ? ` · пунктир — выкатка новой версии${exp.grain === 'day' ? '' : ' (период, включающий дату)'}` : ' · дата выкатки вне выбранного периода'}`;
+    $('#exp-chart-note').textContent = `Только SEO · счётчик ${exp.data.meta.counters[shown.group]} · ${shown.url}${shown.urlScope === 'prefix' ? '*' : ' · только эта страница и параметры'} · ${formatPeriod(exp.from, exp.to)} · ${granularityLabel(exp.grain)}${exp.metric === 'cr1' || exp.metric === 'cr2' ? ' · доли пересчитаны по суммам периода' : ''}${events.length ? ` · пунктир — выкатка новой версии${exp.grain === 'day' ? '' : ' (период, включающий дату)'}` : ' · дата выкатки вне выбранного периода'}`;
     legend.innerHTML = `<span><i class="legend-line fact"></i>${esc(shown.name)}</span>`;
   }
 
@@ -96,7 +96,7 @@
     totals.cr1 = totals.visits ? totals.leads / totals.visits : null;
     totals.cr2 = totals.leads ? totals.sales / totals.leads : null;
     body.innerHTML = perProduct.map(({ p, values }) => row(p.name, values, p.url, false)).join('') + row('Все страницы', totals, null, true);
-    $('#exp-table-note').textContent = `Суммы за ${formatPeriod(exp.from, exp.to)}; CR1 и CR2 пересчитаны по суммам периода.`;
+    $('#exp-table-note').textContent = `Только SEO · суммы за ${formatPeriod(exp.from, exp.to)}; CR1 и CR2 — отношения сумм периода, не когортная конверсия. Канал CRM и атрибуция Метрики могут различаться.`;
   }
 
   function renderMethod() {
