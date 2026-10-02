@@ -661,7 +661,7 @@ function loadUrlState() {
   const params = new URLSearchParams(location.search);
   const grains = ['day', 'week', 'month'];
   const dateParam = (name) => /^\d{4}-\d{2}-\d{2}$/.test(params.get(name) || '') ? params.get(name) : null;
-  if (['leads', 'media', 'recovery', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
+  if (['leads', 'media', 'recovery', 'updates', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
   if (state.data.leads.entities.some((item) => item.id === params.get('lead'))) state.leadId = params.get('lead');
   if (params.get('page')) {
     const entity = state.data.leads.entities.find((item) => item.id === state.leadId);
@@ -687,6 +687,7 @@ function loadUrlState() {
 }
 
 function updateUrl() {
+  if (state.view === 'updates') { if (window.updateUpdatesUrl) window.updateUpdatesUrl(); return; }
   if (state.view === 'recovery') { if (window.updateRecoveryUrl) window.updateRecoveryUrl(); return; }
   if (state.view === 'experiment') { if (window.updateExperimentUrl) window.updateExperimentUrl(); return; }
   const params = new URLSearchParams();
@@ -708,14 +709,33 @@ function updateUrl() {
     params.set('directionFrom', state.directionFrom);
     params.set('directionTo', state.directionTo);
   }
-  history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
+  history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
 }
 
 function activateView(target, syncUrl = true) {
   state.view = target;
-  document.querySelectorAll('.tab-button').forEach((button) => button.classList.toggle('active', button.dataset.target === target));
-  document.querySelectorAll('.dashboard-section').forEach((section) => section.classList.toggle('active', section.id === target));
-  if (target === 'recovery') { if (window.renderRecovery) window.renderRecovery(); }
+  const isMedia = ['media', 'recovery', 'updates'].includes(target);
+  const isResults = ['recovery', 'updates'].includes(target);
+  document.querySelectorAll('.section-tabs .tab-button').forEach((button) => {
+    const active = button.dataset.target === (isMedia ? 'media' : target);
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+  $('#media-navigation').hidden = !isMedia;
+  $('#media-results-navigation').hidden = !isResults;
+  document.querySelectorAll('.nested-tab').forEach((button) => {
+    const active = button.hasAttribute('data-media-results') ? isResults : button.dataset.target === target;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+  document.querySelectorAll('.dashboard-section').forEach((section) => {
+    const active = section.id === target;
+    section.classList.toggle('active', active);
+    section.hidden = !active;
+  });
+  $('#tooltip').classList.remove('visible');
+  if (target === 'updates') { if (window.ensureUpdates) window.ensureUpdates(); else if (window.renderUpdates) window.renderUpdates(); }
+  else if (target === 'recovery') { if (window.renderRecovery) window.renderRecovery(); }
   else if (target === 'experiment') { if (window.renderExperiment) window.renderExperiment(); }
   else if (target === 'media') renderMedia();
   else if (target === 'forecast') renderForecast();
@@ -724,7 +744,7 @@ function activateView(target, syncUrl = true) {
 }
 
 function setupTabs() {
-  document.querySelectorAll('.tab-button').forEach((button) => {
+  document.querySelectorAll('.tab-button, .nested-tab').forEach((button) => {
     button.addEventListener('click', () => activateView(button.dataset.target));
   });
 }
@@ -775,7 +795,8 @@ async function init() {
         .finally(() => { if (state.view === 'forecast') renderForecast(); });
     }
     window.addEventListener('resize', () => {
-      if (state.view === 'leads' && ['spo', 'kids'].includes(state.leadId)) renderLead();
+      if (state.view === 'leads') { renderLead(); renderDirection(); }
+      else if (state.view === 'media') renderMedia();
     });
 
     $('#lead-entity').addEventListener('change', (event) => {
