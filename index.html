@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow, noarchive">
   <title>SEO: лиды и медиатрафик</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261002-4">
+  <link rel="stylesheet" href="styles.css?v=20261002-5">
 </head>
 <body>
   <header class="site-header">
@@ -441,7 +441,9 @@
           <details class="updates-markers"><summary>Даты апдейтов в периоде графика</summary><ul id="upd-events-list"></ul></details>
         </article>
         <article class="table-card">
-          <div class="card-heading"><div><h3>До и после апдейта</h3><p id="upd-table-note"></p></div></div>
+          <div class="card-heading"><div><h3>До и после апдейта</h3><p id="upd-table-note"></p></div><button id="upd-xlsx" class="rec-csv-button" type="button" disabled title="Все строки текущих фильтров и сортировки, не только видимая страница">Скачать таблицу XLSX</button></div>
+          <div class="updates-color-legend" aria-label="Подсветка результатов"><span class="upd-result-growth">Рост</span><span class="upd-result-decline-large">Падение больше 20%</span><span class="upd-result-decline-small">Падение до 20% включительно</span><span>Без изменений / нет сравнения — без подсветки</span></div>
+          <p id="upd-export-status" class="updates-help" role="status" aria-live="polite"></p>
           <div class="table-wrap">
             <table id="upd-table">
               <thead id="upd-table-head"><tr>
@@ -556,7 +558,8 @@
   </footer>
   <script src="recovery.js?v=20261002-2" defer></script>
   <script src="experiment.js?v=20261002-2" defer></script>
-  <script src="updates.js?v=20261002-7" defer></script>
+  <script src="xlsx-export.js?v=20261002-1" defer></script>
+  <script src="updates.js?v=20261002-9" defer></script>
   <script src="app.js?v=20261002-2" defer></script>
 </body>
 </html>
