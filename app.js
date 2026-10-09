@@ -28,9 +28,9 @@ function b64urlBytes(text) {
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
 
-window.loadJSON = async function loadJSON(name) {
+window.loadJSON = async function loadJSON(name, options = {}) {
   if (!SITE_KEY_TEXT) {
-    showLockScreen('Отчёт зашифрован. Откройте ссылку с ключом доступа (часть после символа «#»).');
+    if (!options.softFail) showLockScreen('Отчёт зашифрован. Откройте ссылку с ключом доступа (часть после символа «#»).');
     throw new Error('NO_KEY');
   }
   const response = await fetch(name + '.enc', { cache: 'no-store' });
@@ -48,7 +48,7 @@ window.loadJSON = async function loadJSON(name) {
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(0, 12) }, key, raw.slice(12));
     return JSON.parse(new TextDecoder().decode(plain));
   } catch (error) {
-    showLockScreen('Не удалось расшифровать отчёт: ключ неверен или данные повреждены.');
+    if (!options.softFail) showLockScreen('Не удалось расшифровать отчёт: ключ неверен или данные повреждены.');
     throw new Error('BAD_KEY');
   }
 };
@@ -661,7 +661,7 @@ function loadUrlState() {
   const params = new URLSearchParams(location.search);
   const grains = ['day', 'week', 'month'];
   const dateParam = (name) => /^\d{4}-\d{2}-\d{2}$/.test(params.get(name) || '') ? params.get(name) : null;
-  if (['leads', 'media', 'recovery', 'updates', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
+  if (['leads', 'media', 'recovery', 'updates', 'updates-all', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
   if (state.data.leads.entities.some((item) => item.id === params.get('lead'))) state.leadId = params.get('lead');
   if (params.get('page')) {
     const entity = state.data.leads.entities.find((item) => item.id === state.leadId);
@@ -687,6 +687,7 @@ function loadUrlState() {
 }
 
 function updateUrl() {
+  if (state.view === 'updates-all') { if (window.updateUpdatesAllUrl) window.updateUpdatesAllUrl(); return; }
   if (state.view === 'updates') { if (window.updateUpdatesUrl) window.updateUpdatesUrl(); return; }
   if (state.view === 'recovery') { if (window.updateRecoveryUrl) window.updateRecoveryUrl(); return; }
   if (state.view === 'experiment') { if (window.updateExperimentUrl) window.updateExperimentUrl(); return; }
@@ -714,7 +715,8 @@ function updateUrl() {
 
 function activateView(target, syncUrl = true) {
   state.view = target;
-  const isMedia = ['media', 'recovery', 'updates'].includes(target);
+  if (state.data?.meta?.asOf) $('#as-of').textContent = `Данные по ${formatDate(state.data.meta.asOf)}`;
+  const isMedia = ['media', 'recovery', 'updates', 'updates-all'].includes(target);
   const isResults = ['recovery', 'updates'].includes(target);
   document.querySelectorAll('.section-tabs .tab-button').forEach((button) => {
     const active = button.dataset.target === (isMedia ? 'media' : target);
@@ -734,7 +736,8 @@ function activateView(target, syncUrl = true) {
     section.hidden = !active;
   });
   $('#tooltip').classList.remove('visible');
-  if (target === 'updates') { if (window.ensureUpdates) window.ensureUpdates(); else if (window.renderUpdates) window.renderUpdates(); }
+  if (target === 'updates-all') { if (window.ensureUpdatesAll) window.ensureUpdatesAll(); }
+  else if (target === 'updates') { if (window.ensureUpdates) window.ensureUpdates(); else if (window.renderUpdates) window.renderUpdates(); }
   else if (target === 'recovery') { if (window.renderRecovery) window.renderRecovery(); }
   else if (target === 'experiment') { if (window.renderExperiment) window.renderExperiment(); }
   else if (target === 'media') renderMedia();

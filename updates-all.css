@@ -1,0 +1,76 @@
+/* Изолированные стили Апдейты ALL; Graphik загружает существующий styles.css. */
+#updates-all{font-family:Graphik,sans-serif;color:var(--text);min-width:0;--upa-pink:#FBE4ED;--upa-yellow:#FFF4CC;--upa-field-border:#C4C4C4;--upa-signal-pink:#D12868;--upa-signal-yellow:#946600}
+#updates-all [hidden]{display:none!important}
+#updates-all .upa-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4);margin-bottom:var(--space-6)}
+#updates-all .upa-field{display:flex;flex-direction:column;gap:var(--space-2);min-width:0;font-size:14px;font-weight:500}
+#updates-all .upa-field select,#updates-all .upa-field input{width:100%;min-width:0;min-height:48px;border:1px solid var(--upa-field-border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font:inherit;padding:var(--space-3);font-weight:400}
+#updates-all .upa-field input:focus,#updates-all .upa-field select:focus{border-color:var(--text);outline:2px solid var(--text);outline-offset:2px}
+#updates-all button:focus-visible,#updates-all a:focus-visible,#updates-all summary:focus-visible,#updates-all .upa-chart:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+#updates-all .upa-actions{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-6)}
+#updates-all .upa-button{border:0;border-radius:var(--radius-sm);padding:var(--space-3) var(--space-6);font:inherit;font-size:14px;font-weight:500;cursor:pointer;background:var(--surface);color:var(--text);min-height:44px}
+#updates-all .upa-button:hover:not(:disabled){background:var(--primary);color:var(--bg)}
+#updates-all .upa-button:disabled{cursor:default;opacity:.4}
+#updates-all .upa-notice{background:var(--surface);border-radius:var(--radius-md);padding:var(--space-6);line-height:1.55;margin-bottom:var(--space-6);font-size:14px;overflow-wrap:anywhere}
+#updates-all .upa-notice p{margin:0 0 var(--space-3);font-weight:400}
+#updates-all .upa-notice p:last-child{margin-bottom:0}
+#updates-all .upa-warning{background:var(--upa-yellow)}
+#updates-all .upa-help{font-size:14px;line-height:1.5;font-weight:400;margin:0;overflow-wrap:anywhere}
+#updates-all .upa-kpis{margin-bottom:var(--space-6)}
+#updates-all .kpi-caption{line-height:1.45;overflow-wrap:anywhere}
+#updates-all .kpi-value{font-size:32px}
+#updates-all .chart-card{scroll-margin-top:88px;min-width:0}
+#updates-all .upa-chart{min-width:0;width:100%}
+#updates-all .upa-chart svg{width:100%;height:auto;display:block}
+#updates-all .upa-grid{stroke:var(--bg);stroke-width:1}
+#updates-all .upa-axis{stroke:var(--text);stroke-width:1}
+#updates-all .upa-axis-label{fill:var(--text);font-family:Graphik,sans-serif;font-size:13px;font-weight:500}
+#updates-all .upa-line-traffic,#updates-all .upa-line-gsc{stroke:var(--primary);fill:none;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+#updates-all .upa-line-wm{stroke:var(--text);fill:none;stroke-width:3;stroke-dasharray:8 5;stroke-linejoin:round;stroke-linecap:round}
+#updates-all .upa-point{fill:var(--primary);stroke-width:1;stroke-dasharray:none}
+#updates-all .upa-line-wm.upa-point{fill:var(--text)}
+#updates-all .upa-provisional{fill:var(--bg);stroke-width:2}
+#updates-all .upa-event{stroke:var(--text);stroke-width:1;stroke-dasharray:3 5}
+#updates-all .upa-cursor{stroke:var(--text);stroke-width:1;stroke-dasharray:4 4;pointer-events:none}
+#updates-all .upa-hit{fill:transparent;cursor:crosshair}
+#updates-all .upa-chart-readout{min-height:68px;padding:var(--space-3) 0;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+#updates-all .upa-legend{display:flex;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-4);font-size:14px;font-weight:500}
+#updates-all .upa-legend span{display:inline-flex;align-items:center;gap:var(--space-2)}
+#updates-all .upa-legend i{width:28px;height:0;border-top:3px solid var(--primary)}
+#updates-all .upa-legend .upa-wm{border-color:var(--text);border-top-style:dashed}
+#updates-all .upa-legend .upa-marker{border-color:var(--text);border-top-width:1px;border-top-style:dashed}
+#updates-all details{font-size:14px;line-height:1.5;min-width:0;margin-top:var(--space-4)}
+#updates-all summary{cursor:pointer;font-weight:500}
+#updates-all details>ul{padding-left:var(--space-6);max-height:320px;overflow:auto}
+#updates-all li{margin-bottom:var(--space-2);overflow-wrap:anywhere}
+#updates-all .upa-data-wrap{overflow:auto;max-height:400px;margin-top:var(--space-4);border-radius:var(--radius-sm)}
+#updates-all .upa-data-wrap table{min-width:520px}
+#updates-all caption{text-align:left;font-weight:500;padding:var(--space-3)}
+#updates-all .upa-badge{display:inline-block;background:var(--surface);padding:var(--space-2) var(--space-3);border-radius:var(--radius-sm);font-size:12px;font-weight:500;line-height:1.45}
+#updates-all .upa-cell-note{display:block;margin-top:var(--space-2);font-size:12px;font-weight:400;line-height:1.5}
+#updates-all .upa-table-wrap{overflow:auto;border-radius:var(--radius-md)}
+#upa-table{min-width:1200px}
+#upa-table td{vertical-align:top;background:var(--surface)}
+#upa-table td:first-child{min-width:240px;max-width:360px;overflow-wrap:anywhere}
+#upa-table td:last-child{min-width:260px;max-width:360px}
+#upa-table .upa-traffic-severe{background:var(--upa-pink)}
+#upa-table .upa-traffic-warning{background:var(--upa-yellow)}
+#upa-table .upa-signal-severe td{background:var(--upa-pink)}
+#upa-table .upa-signal-warning td{background:var(--upa-yellow)}
+#upa-table .upa-signal-severe td:first-child{border-left:4px solid var(--upa-signal-pink)}
+#upa-table .upa-signal-warning td:first-child{border-left:4px solid var(--upa-signal-yellow)}
+#upa-table .upa-signal-severe .upa-badge{background:var(--upa-pink)}
+#upa-table .upa-signal-warning .upa-badge{background:var(--upa-yellow)}
+#upa-table .upa-row{cursor:pointer}
+#upa-table .upa-row:hover td{outline:1px solid var(--text);outline-offset:-1px}
+#updates-all .upa-pager{display:flex;gap:var(--space-3);align-items:center;justify-content:flex-end;flex-wrap:wrap;padding:var(--space-4) 0;font-size:14px}
+#updates-all a{color:var(--text);text-decoration:underline}
+#updates-all code{font-family:Graphik,sans-serif;overflow-wrap:anywhere}
+#updates-all .upa-method{padding:var(--space-8);background:var(--surface);border-radius:var(--radius-lg);margin-top:var(--space-6)}
+#updates-all .upa-method h3{font-size:28px;font-weight:600;letter-spacing:-.03em;margin:0 0 var(--space-4)}
+#updates-all .upa-method ul{padding-left:var(--space-6);margin:0;font-size:14px;line-height:1.55}
+#updates-all .upa-color-legend{display:flex;gap:var(--space-3);flex-wrap:wrap;margin:var(--space-4) 0}
+#updates-all .upa-color-legend span{padding:var(--space-2) var(--space-3);border-radius:var(--radius-sm);font-size:14px}
+#updates-all .upa-color-legend .upa-pink{background:var(--upa-pink)}
+#updates-all .upa-color-legend .upa-yellow{background:var(--upa-yellow)}
+@media(max-width:1000px){#updates-all .upa-controls{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){#updates-all .upa-axis-label{font-size:15px}#updates-all .upa-controls{grid-template-columns:minmax(0,1fr)}#updates-all .upa-method{padding:var(--space-6) var(--space-4)}#updates-all .upa-notice{padding:var(--space-4)}#updates-all .upa-chart svg{min-height:180px}#updates-all .upa-pager{justify-content:flex-start}#updates-all .upa-button{max-width:100%}#updates-all .upa-chart-readout{min-height:96px}}

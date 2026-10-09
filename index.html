@@ -8,6 +8,7 @@
   <title>SEO: лиды и медиатрафик</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=20261002-5">
+  <link rel="stylesheet" href="updates-all.css?v=20261009-1">
 </head>
 <body>
   <header class="site-header">
@@ -41,6 +42,7 @@
       <nav class="nested-tabs" aria-label="Медиатрафик">
         <button class="nested-tab" data-target="media" type="button">Трафик</button>
         <button class="nested-tab" data-target="recovery" data-media-results type="button">Результаты</button>
+        <button class="nested-tab" data-target="updates-all" type="button">Апдейты ALL</button>
       </nav>
       <nav id="media-results-navigation" class="nested-tabs results-tabs" aria-label="Результаты медиатрафика" hidden>
         <button class="nested-tab" data-target="recovery" type="button">Мониторинг метатегов</button>
@@ -465,6 +467,74 @@
       </div>
     </section>
 
+    <section id="updates-all" class="dashboard-section" aria-labelledby="upa-heading">
+      <div class="section-heading"><div><p class="eyebrow">Медиатрафик</p><h2 id="upa-heading">Апдейты ALL</h2></div></div>
+      <div id="upa-status" class="upa-notice" role="status"><p id="upa-status-text">Данные загрузятся при открытии вкладки.</p><button id="upa-retry" class="upa-button" type="button" hidden>Повторить загрузку</button></div>
+      <div id="upa-content" hidden>
+        <div id="upa-history-warning" class="upa-notice upa-warning" role="note" hidden></div>
+        <div class="upa-controls" aria-label="Фильтры статей и апдейтов">
+          <label class="upa-field"><span>Месяц обновления</span><select id="upa-month"><option value="all">Все месяцы</option><option value="undated">Без даты</option></select></label>
+          <label class="upa-field"><span>Раздел</span><select id="upa-section"><option value="all">Все разделы</option></select></label>
+          <label class="upa-field"><span>Поиск по статье или URL</span><input id="upa-search" type="search" autocomplete="off"></label>
+          <label class="upa-field"><span>Статья</span><select id="upa-article"><option value="all">Все статьи</option></select></label>
+          <label class="upa-field"><span>Сигнал доработки</span><select id="upa-filter-status"><option value="all">Все статусы</option><option value="needs-revision">Нужна доработка</option><option value="severe">Падение больше 20% + хуже позиция</option><option value="warning">Падение до 20% + хуже позиция</option><option value="no-data">Недостаточно данных</option></select></label>
+          <label class="upa-field"><span>Окно сравнения, дней с каждой стороны</span><select id="upa-window"><option value="7">7 дней</option><option value="14">14 дней</option><option value="28" selected>28 дней</option></select></label>
+        </div>
+        <p id="upa-scope-note" class="upa-help" aria-live="polite"></p>
+        <div id="upa-future" class="upa-notice" hidden></div>
+        <div id="upa-kpis" class="kpi-grid upa-kpis" aria-live="polite"></div>
+        <div class="upa-controls" aria-label="Период и детализация обоих графиков">
+          <label class="upa-field"><span>Графики с</span><input id="upa-from" type="date"></label>
+          <label class="upa-field"><span>Графики по</span><input id="upa-to" type="date"></label>
+          <label class="upa-field"><span>Детализация</span><select id="upa-grain"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
+        </div>
+        <div class="upa-actions"><button id="upa-full-range" class="upa-button" type="button">Весь период с 01.06.2025</button><p id="upa-period-note" class="upa-help"></p></div>
+        <article id="upa-traffic-card" class="chart-card">
+          <div class="card-heading"><div><h3>SEO-трафик статей</h3><p>Полная история выбранных URL. Пунктир — точные даты обновления.</p></div></div>
+          <div class="upa-legend" aria-label="Легенда трафика"><span><i></i>SEO-визиты</span><span><i class="upa-marker"></i>Дата обновления</span></div>
+          <div id="upa-traffic-chart" class="upa-chart" tabindex="0" aria-label="График SEO-трафика"></div>
+          <details><summary>Трафик в таблице</summary><div id="upa-traffic-data" class="upa-data-wrap"></div></details>
+        </article>
+        <article class="chart-card">
+          <div class="card-heading"><div><h3>Средние позиции</h3><p>Меньше — лучше. Средняя по доступным измерениям, взвешенная по показам. Покрытие указано в подсказке и таблице. Предварительные дни GSC отмечены полыми точками.</p></div></div>
+          <div class="upa-legend" aria-label="Легенда позиций"><span><i></i>Google Search Console</span><span><i class="upa-wm"></i>Яндекс Вебмастер</span><span><i class="upa-marker"></i>Дата обновления</span></div>
+          <div id="upa-position-chart" class="upa-chart" tabindex="0" aria-label="График средних позиций"></div>
+          <details><summary>Позиции, показы и покрытие в таблице</summary><div id="upa-position-data" class="upa-data-wrap"></div></details>
+        </article>
+        <details id="upa-markers"><summary>Даты апдейтов на графиках</summary></details>
+        <article class="table-card">
+          <div class="card-heading"><div><h3>Сравнение по каждому апдейту</h3><p>Нажмите на строку или название статьи, чтобы показать её графики. Статьи без даты остаются в таблице.</p></div></div>
+          <div class="upa-color-legend"><span class="upa-pink">Трафик упал больше 20%</span><span class="upa-yellow">Трафик упал до 20% включительно</span><span>Контур строки и отметка: одновременно ухудшилась позиция</span></div>
+          <div class="upa-table-wrap" tabindex="0" aria-label="Таблица апдейтов, горизонтальная прокрутка">
+            <table id="upa-table"><caption>Равные непрерывные окна до и после, без дня обновления</caption>
+              <thead id="upa-table-head"><tr>
+                <th scope="col" aria-sort="none"><button class="th-sort" type="button" data-sort="title">Статья</button></th>
+                <th scope="col" aria-sort="descending"><button class="th-sort" type="button" data-sort="date">Дата апдейта</button></th>
+                <th scope="col" aria-sort="none"><button class="th-sort" type="button" data-sort="delta">SEO до → после</button></th>
+                <th scope="col" aria-sort="none"><button class="th-sort" type="button" data-sort="gsc">Позиция GSC до → после</button></th>
+                <th scope="col" aria-sort="none"><button class="th-sort" type="button" data-sort="webmaster">Позиция Яндекс до → после</button></th>
+                <th scope="col" aria-sort="none"><button class="th-sort" type="button" data-sort="status">Сигнал и полнота окна</button></th>
+              </tr></thead><tbody id="upa-table-body"></tbody>
+            </table>
+          </div>
+          <div class="upa-pager"><button id="upa-prev" class="upa-button" type="button" disabled>Назад</button><span id="upa-page-label" aria-live="polite"></span><button id="upa-next" class="upa-button" type="button" disabled>Вперёд</button></div>
+        </article>
+        <div id="upa-source" class="upa-notice" aria-label="Источники и даты среза"></div>
+        <article class="upa-method">
+          <h3>Как читать сравнение</h3>
+          <ul>
+            <li>Сравниваем одинаковое число n дней до и после обновления. Сам день обновления исключаем. Окно — 7, 14 или 28 дней; ограничиваем его доступной историей и соседними обновлениями статьи. Частичные окна показываем явно.</li>
+            <li>«Нужна доработка»: SEO-трафик снизился и средняя позиция хотя бы одного доступного поисковика ухудшилась. Больше 20% — розовый, до 20% включительно — жёлтый. Для сигнала нужны минимум 7 дней с каждой стороны и полное покрытие позиций. Падение без ухудшения позиции выделяем только в ячейке трафика.</li>
+            <li>Позиция за окно = сумма (позиция × показы) / сумма показов. Чем больше номер, тем хуже позиция. Для сигнала каждый день должен иметь завершённые данные GSC или измерения Вебмастера, а с каждой стороны нужны положительные показы.</li>
+            <li>Предварительные дни GSC видны на графике, но исключены из сигнала. Пропуски не заменяем нулями. Отсутствие данных не считаем стабильностью или ростом. На графике группы статей показываем среднюю по доступным измерениям с указанием покрытия.</li>
+            <li>Все регионы и устройства. GSC: web, точный URL, средняя позиция страницы из API. Вебмастер: URL, обычная веб-выдача. Историю Вебмастера накапливаем при следующих обновлениях. Часовые пояса и срезы источников могут различаться.</li>
+            <li>Даты берём только из столбца «Дата обновления материала» Google Sheets. Повторные URL объединяем, статьи без даты сохраняем, будущие даты не используем в сравнениях. Пунктир стоит на точной дате обновления при любой детализации графика.</li>
+            <li>При нулевом трафике до процент не рассчитываем; положительный трафик после — «Рост с нуля». Период графика не меняет окно сравнения. Динамика до и после не доказывает эффект обновления: учитывайте спрос, сезонность и изменения выдачи.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
     <section id="experiment" class="dashboard-section" aria-labelledby="experiment-heading">
       <div class="section-heading">
         <div>
@@ -560,6 +630,7 @@
   <script src="experiment.js?v=20261002-2" defer></script>
   <script src="xlsx-export.js?v=20261002-1" defer></script>
   <script src="updates.js?v=20261002-9" defer></script>
-  <script src="app.js?v=20261002-2" defer></script>
+  <script src="updates-all.js?v=20261009-1" defer></script>
+  <script src="app.js?v=20261009-1" defer></script>
 </body>
 </html>
