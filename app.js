@@ -502,6 +502,25 @@ function renderDirectionSummary() {
 
 const FC_COEF_SOURCE = { own: 'сезонность этого направления в 2025', core: 'база прошлого года мала — взят коэффициент core', neutral: 'прошлый год — фаза запуска, коэффициент 1,00' };
 
+function fcGen(name) {
+  // Родительный падеж: «Октябрь» → «октября», «Ноябрь» → «ноября».
+  const w = name.toLowerCase();
+  return w.endsWith('ь') ? w.slice(0, -1) + 'я' : w;
+}
+
+function fcShort(name) {
+  return name.slice(0, 3).toLowerCase();
+}
+
+function forecastHeadMonths(months) {
+  // Подписи месяцев в шапках таблиц: из meta.months (m3/m2 — история, cur — текущий, next — прогнозный).
+  return [
+    months.m3, months.m2, `${months.cur}: факт`, 'Досчёт', `Итог ${fcGen(months.cur)}`,
+    `Тренд ${fcShort(months.cur)}/${fcShort(months.m2)}`,
+    `${months.next}: тренд`, `${months.next}: сезонность`, `${months.next}: спрос`, 'Сезонный коэф.',
+  ];
+}
+
 function forecastTrendCell(row) {
   if (row.trendPct === null || row.trendPct === undefined) return '<span class="fc-trend side">—</span>';
   const cls = row.trendLabel === 'рост' ? 'up' : row.trendLabel === 'падение' ? 'down' : 'side';
@@ -517,26 +536,26 @@ function forecastCoefCell(row) {
 }
 
 function forecastDemandCell(row, total) {
-  if (row.octDemand === null || row.octDemand === undefined) {
+  if (row.nextDemand === null || row.nextDemand === undefined) {
     return '<td class="fc-d fc-soft" title="нет строки спроса в файле отслеживания">—</td>';
   }
   const factor = row.demandFactor !== null && row.demandFactor !== undefined
-    ? `спрос-фактор ×${nf.format(row.demandFactor)} — сезонность спроса окт/сен 2025` : '';
+    ? `спрос-фактор ×${nf.format(row.demandFactor)} — сезонность спроса ноя/окт 2025` : '';
   const cover = total && row.demandCover
     ? ` · покрытие спросом: ${row.demandCover} ${row.demandCover === 9 ? 'направлений' : 'проект'} из ${row.name.includes('core') ? '13' : '6'}` : '';
-  return `<td class="fc-d"${factor || cover ? ` title="${factor}${cover}"` : ''}>${formatInt(row.octDemand)}${cover ? '<span class="fc-soft">*</span>' : ''}</td>`;
+  return `<td class="fc-d"${factor || cover ? ` title="${factor}${cover}"` : ''}>${formatInt(row.nextDemand)}${cover ? '<span class="fc-soft">*</span>' : ''}</td>`;
 }
 
 function forecastRow(row, total) {
   return `<tr${total ? ' class="direction-total"' : ''}>`
     + `<td>${row.name}</td>`
-    + `<td>${formatInt(row.jul)}</td><td>${formatInt(row.aug)}</td>`
-    + `<td>${formatInt(row.sepFact)}</td>`
-    + `<td class="fc-soft">+${formatInt(row.sepRemaining)}</td>`
-    + `<td><b>${formatInt(row.sepEom)}</b></td>`
+    + `<td>${formatInt(row.m3)}</td><td>${formatInt(row.m2)}</td>`
+    + `<td>${formatInt(row.curFact)}</td>`
+    + `<td class="fc-soft">+${formatInt(row.curRemaining)}</td>`
+    + `<td><b>${formatInt(row.curEom)}</b></td>`
     + `<td>${forecastTrendCell(row)}</td>`
-    + `<td class="fc-a">${formatInt(row.octTrend)}</td>`
-    + `<td class="fc-b">${formatInt(row.octSeasonal)}</td>`
+    + `<td class="fc-a">${formatInt(row.nextTrend)}</td>`
+    + `<td class="fc-b">${formatInt(row.nextSeasonal)}</td>`
     + forecastDemandCell(row, total)
     + `<td>${forecastCoefCell(row)}</td></tr>`;
 }
@@ -545,16 +564,24 @@ function renderForecast() {
   const fc = state.forecast;
   if (!fc) return;
   const meta = fc.meta;
+  const months = meta.months || { m3: 'Август', m2: 'Сентябрь', cur: 'Октябрь', next: 'Ноябрь' };
+  for (const headId of ['forecast-projects-head', 'forecast-directions-head']) {
+    const head = document.getElementById(headId);
+    if (!head) continue;
+    const cells = head.querySelectorAll('th');
+    const labels = forecastHeadMonths(months);
+    cells.forEach((th, i) => { if (i >= 1 && i <= 9 && labels[i - 1]) th.textContent = labels[i - 1]; });
+  }
   $('#forecast-kpis').innerHTML = [
-    `<span class="mini-kpi">Итог сентября, 6 проектов <b>${formatInt(fc.total.sepEom)}</b></span>`,
-    `<span class="mini-kpi">Досчёт ${formatDate(meta.sepRemainFrom)}–${formatDate(meta.sepRemainTo)} · ставка недели ${formatDate(meta.sepWindow[0])}–${formatDate(meta.sepWindow[1])} <b>+${formatInt(fc.total.sepRemaining)}</b></span>`,
-    `<span class="mini-kpi">Октябрь · сценарий «тренд» <b>${formatInt(fc.total.octTrend)}</b></span>`,
-    `<span class="mini-kpi">Октябрь · сценарий «сезонность» <b>${formatInt(fc.total.octSeasonal)}</b></span>`,
-    ...(fc.projects.find((p) => p.id === 'core')?.octDemand != null
-      ? [`<span class="mini-kpi">Октябрь · сценарий «спрос», только core <b>${formatInt(fc.projects.find((p) => p.id === 'core').octDemand)}</b></span>`]
+    `<span class="mini-kpi">Итог ${fcGen(months.cur)}, 6 проектов <b>${formatInt(fc.total.curEom)}</b></span>`,
+    `<span class="mini-kpi">Досчёт ${formatDate(meta.curRemainFrom)}–${formatDate(meta.curRemainTo)} · ставка недели ${formatDate(meta.curWindow[0])}–${formatDate(meta.curWindow[1])} <b>+${formatInt(fc.total.curRemaining)}</b></span>`,
+    `<span class="mini-kpi">${months.next} · сценарий «тренд» <b>${formatInt(fc.total.nextTrend)}</b></span>`,
+    `<span class="mini-kpi">${months.next} · сценарий «сезонность» <b>${formatInt(fc.total.nextSeasonal)}</b></span>`,
+    ...(fc.projects.find((p) => p.id === 'core')?.nextDemand != null
+      ? [`<span class="mini-kpi">${months.next} · сценарий «спрос», только core <b>${formatInt(fc.projects.find((p) => p.id === 'core').nextDemand)}</b></span>`]
       : []),
   ].join('');
-  $('#forecast-projects-note').textContent = `Факт по ${formatDate(meta.asOf)}; итог сентября = факт + ставка последних 7 дней × ${meta.sepRemainingDays} дн. (${nf.format(meta.sepTailFactor)} «средних» дня с учётом дней недели); октябрь — 31 календарный день ≈ ${nf.format(meta.octFactor)} «средних». Спрос-сценарий — только для core (файл спроса покрывает направления core); в таблице направлений — 9 строк из 13.`;
+  $('#forecast-projects-note').textContent = `Факт по ${formatDate(meta.asOf)}; итог ${fcGen(months.cur)} = факт + ставка последних 7 дней × ${meta.curRemainingDays} дн. (${nf.format(meta.curTailFactor)} «средних» дня с учётом дней недели); ${months.next.toLowerCase()} — ${meta.nextDays} календарных дней ≈ ${nf.format(meta.nextFactor)} «средних». Спрос-сценарий — только для core (файл спроса покрывает направления core); в таблице направлений — ${meta.demand.mappedDirections} строк из 13.`;
   $('#forecast-directions-note').textContent = `Тринадцать направлений горячей воронки core (сумма = Skillbox core) · факт по ${formatDate(meta.asOf)}.`;
   $('#forecast-projects').innerHTML = fc.projects.map((row) => forecastRow(row, false)).join('') + forecastRow(fc.total, true);
   $('#forecast-directions').innerHTML = fc.directions.map((row) => forecastRow(row, false)).join('') + forecastRow(fc.directionsTotal, true);
