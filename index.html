@@ -9,6 +9,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=20261002-5">
   <link rel="stylesheet" href="updates-all.css?v=20261009-1">
+  <link rel="stylesheet" href="products-sf-cd.css?v=20261028-1">
 </head>
 <body>
   <header class="site-header">
@@ -38,6 +39,11 @@
       <button class="tab-button" data-target="experiment" type="button">Эксперимент: вайбкодинг</button>
     </nav>
 
+    <nav id="leads-navigation" class="nested-tabs" aria-label="Лиды" hidden>
+      <button class="nested-tab" data-target="leads" type="button">План и факт</button>
+      <button class="nested-tab" data-target="products-sf-cd" type="button">Продукты SF/CD</button>
+    </nav>
+
     <div id="media-navigation" hidden>
       <nav class="nested-tabs" aria-label="Медиатрафик">
         <button class="nested-tab" data-target="media" type="button">Трафик</button>
@@ -49,6 +55,11 @@
         <button class="nested-tab" data-target="updates" type="button">Апдейты</button>
       </nav>
     </div>
+
+    <section id="products-sf-cd" class="dashboard-section" hidden aria-labelledby="products-sf-cd-heading">
+      <div class="section-heading"><div><p class="eyebrow">SEO-продукты</p><h2 id="products-sf-cd-heading">Продукты SF/CD</h2></div></div>
+      <div class="empty" role="status">Данные отчёта ещё не подготовлены.</div>
+    </section>
 
     <section id="leads" class="dashboard-section active" aria-labelledby="leads-heading">
       <div class="section-heading">
@@ -631,6 +642,8 @@
   <script src="xlsx-export.js?v=20261002-1" defer></script>
   <script src="updates.js?v=20261002-9" defer></script>
   <script src="updates-all.js?v=20261009-1" defer></script>
+  <script src="products_model.js?v=20261028-1" defer></script>
+  <script src="products-sf-cd.js?v=20261028-1" defer></script>
   <script src="app.js?v=20261009-1" defer></script>
 </body>
 </html>

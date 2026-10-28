@@ -688,7 +688,7 @@ function loadUrlState() {
   const params = new URLSearchParams(location.search);
   const grains = ['day', 'week', 'month'];
   const dateParam = (name) => /^\d{4}-\d{2}-\d{2}$/.test(params.get(name) || '') ? params.get(name) : null;
-  if (['leads', 'media', 'recovery', 'updates', 'updates-all', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
+  if (['leads', 'products-sf-cd', 'media', 'recovery', 'updates', 'updates-all', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
   if (state.data.leads.entities.some((item) => item.id === params.get('lead'))) state.leadId = params.get('lead');
   if (params.get('page')) {
     const entity = state.data.leads.entities.find((item) => item.id === state.leadId);
@@ -714,6 +714,11 @@ function loadUrlState() {
 }
 
 function updateUrl() {
+  if (state.view === 'products-sf-cd') {
+    if (window.updateProductsSfCdUrl) window.updateProductsSfCdUrl();
+    else history.replaceState(null, '', `${location.pathname}?view=products-sf-cd${location.hash}`);
+    return;
+  }
   if (state.view === 'updates-all') { if (window.updateUpdatesAllUrl) window.updateUpdatesAllUrl(); return; }
   if (state.view === 'updates') { if (window.updateUpdatesUrl) window.updateUpdatesUrl(); return; }
   if (state.view === 'recovery') { if (window.updateRecoveryUrl) window.updateRecoveryUrl(); return; }
@@ -744,12 +749,14 @@ function activateView(target, syncUrl = true) {
   state.view = target;
   if (state.data?.meta?.asOf) $('#as-of').textContent = `Данные по ${formatDate(state.data.meta.asOf)}`;
   const isMedia = ['media', 'recovery', 'updates', 'updates-all'].includes(target);
+  const isLeads = ['leads', 'products-sf-cd'].includes(target);
   const isResults = ['recovery', 'updates'].includes(target);
   document.querySelectorAll('.section-tabs .tab-button').forEach((button) => {
-    const active = button.dataset.target === (isMedia ? 'media' : target);
+    const active = button.dataset.target === (isMedia ? 'media' : isLeads ? 'leads' : target);
     button.classList.toggle('active', active);
     button.setAttribute('aria-current', active ? 'page' : 'false');
   });
+  $('#leads-navigation').hidden = !isLeads;
   $('#media-navigation').hidden = !isMedia;
   $('#media-results-navigation').hidden = !isResults;
   document.querySelectorAll('.nested-tab').forEach((button) => {
@@ -763,7 +770,8 @@ function activateView(target, syncUrl = true) {
     section.hidden = !active;
   });
   $('#tooltip').classList.remove('visible');
-  if (target === 'updates-all') { if (window.ensureUpdatesAll) window.ensureUpdatesAll(); }
+  if (target === 'products-sf-cd') { if (window.ensureProductsSfCd) window.ensureProductsSfCd(); }
+  else if (target === 'updates-all') { if (window.ensureUpdatesAll) window.ensureUpdatesAll(); }
   else if (target === 'updates') { if (window.ensureUpdates) window.ensureUpdates(); else if (window.renderUpdates) window.renderUpdates(); }
   else if (target === 'recovery') { if (window.renderRecovery) window.renderRecovery(); }
   else if (target === 'experiment') { if (window.renderExperiment) window.renderExperiment(); }
