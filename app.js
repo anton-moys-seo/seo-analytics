@@ -110,8 +110,34 @@ function normalizedPeriod(dates, from, to) {
   const safeTo = to && dates.includes(to) ? to : max;
   return safeFrom <= safeTo ? [safeFrom, safeTo] : [safeTo, safeFrom];
 }
-function kpi(label, value, caption = '', primary = false) {
-  return `<div class="kpi-card${primary ? ' primary' : ''}"><span class="kpi-label">${label}</span><div><div class="kpi-value">${value}</div>${caption ? `<div class="kpi-caption">${caption}</div>` : ''}</div></div>`;
+function kpi(label, value, caption = '', primary = false, visual = '', modifier = '') {
+  return `<div class="kpi-card${primary ? ' primary' : ''}${modifier ? ` ${modifier}` : ''}"><span class="kpi-label">${label}</span><div><div class="kpi-value">${value}</div>${caption ? `<div class="kpi-caption">${caption}</div>` : ''}</div>${visual}</div>`;
+}
+
+// --- UI-визуализации без новых метрик: рисуют уже посчитанные значения. ---
+function executionTier(execution) {
+  if (execution === null || execution === undefined) return null;
+  return execution >= 1 ? 'good' : execution >= 0.9 ? 'mid' : 'low';
+}
+// Шкала полосы выполнения 0–150 %; отметка — 100 % плана. Значение выше 150 % упирается в край.
+function executionMeter(execution, tier = executionTier(execution)) {
+  if (!tier) return '';
+  const width = Math.max(0, Math.min(execution, 1.5)) / 1.5 * 100;
+  return `<span class="exec-meter exec-${tier}" aria-hidden="true"><i style="width:${width.toFixed(1)}%"></i><b></b></span>`;
+}
+function shareMeter(share) {
+  if (share === null || share === undefined || Number.isNaN(share)) return '';
+  return `<span class="share-meter" aria-hidden="true"><i style="width:${(Math.max(0, Math.min(share, 1)) * 100).toFixed(1)}%"></i></span>`;
+}
+function sparkline(values) {
+  const points = values.map((v, i) => [i, v]).filter(([, v]) => v !== null && v !== undefined);
+  if (points.length < 2) return '';
+  const w = 240, h = 44, max = Math.max(...points.map(([, v]) => v)), min = Math.min(0, ...points.map(([, v]) => v));
+  const span = max - min || 1, last = values.length - 1 || 1;
+  const xy = ([i, v]) => `${(i / last * w).toFixed(1)},${(h - 2 - (v - min) / span * (h - 4)).toFixed(1)}`;
+  const line = points.map((pt, k) => `${k ? 'L' : 'M'}${xy(pt)}`).join(' ');
+  const area = `${line} L${(points[points.length - 1][0] / last * w).toFixed(1)},${h} L${(points[0][0] / last * w).toFixed(1)},${h} Z`;
+  return `<svg class="kpi-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path class="kpi-spark-area" d="${area}"></path><path class="kpi-spark-line" d="${line}"></path></svg>`;
 }
 
 function niceScale(maxValue) {
@@ -141,6 +167,8 @@ function renderLineChart(container, dates, series, options = {}) {
   const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
 
   let svg = `<svg viewBox="0 0 ${width} ${height}" aria-hidden="true">`;
+  const gradId = `${container.id}-area-grad`;
+  svg += `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="area-stop-top"></stop><stop offset="1" class="area-stop-bottom"></stop></linearGradient></defs>`;
   for (let tick = 0; tick <= Math.round(scale.max / scale.step); tick++) {
     const value = scale.step * tick;
     const yy = y(value);
@@ -163,6 +191,43 @@ function renderLineChart(container, dates, series, options = {}) {
     svg += `<line class="axis-line" x1="${xx}" y1="${margin.top+innerH}" x2="${xx}" y2="${margin.top+innerH+6}"></line>`;
     svg += `<text class="axis-label" x="${xx}" y="${height-20}" text-anchor="middle">${esc(formatDate(dates[index]).slice(0,5))}</text>`;
   });
+
+  // Зона отклонения план/факт: та же разница «факт минус план», что и в KPI, только нарисованная.
+  const planSeries = options.gap ? series.find((item) => item.className.includes('line-black')) : null;
+  const factSeries = options.gap ? series.find((item) => item.className.includes('line-primary')) : null;
+  if (planSeries && factSeries) {
+    let above = '', below = '';
+    const has = (v) => v !== null && v !== undefined;
+    for (let i = 0; i < dates.length - 1; i++) {
+      const p0 = planSeries.values[i], p1 = planSeries.values[i + 1], f0 = factSeries.values[i], f1 = factSeries.values[i + 1];
+      if (![p0, p1, f0, f1].every(has)) continue;
+      const d0 = f0 - p0, d1 = f1 - p1, x0 = x(i), x1 = x(i + 1);
+      const poly = (pts) => `M${pts.map(([a, b]) => `${a.toFixed(2)},${b.toFixed(2)}`).join(' L')} Z `;
+      if (d0 * d1 >= 0) {
+        const piece = poly([[x0, y(f0)], [x1, y(f1)], [x1, y(p1)], [x0, y(p0)]]);
+        if (d0 + d1 >= 0) above += piece; else below += piece;
+      } else {
+        const t = d0 / (d0 - d1), xm = x0 + t * (x1 - x0), ym = y(p0 + t * (p1 - p0));
+        const first = poly([[x0, y(f0)], [xm, ym], [x0, y(p0)]]), second = poly([[xm, ym], [x1, y(f1)], [x1, y(p1)]]);
+        if (d0 > 0) { above += first; below += second; } else { below += first; above += second; }
+      }
+    }
+    if (above) svg += `<path class="gap-above" d="${above.trim()}"></path>`;
+    if (below) svg += `<path class="gap-below" d="${below.trim()}"></path>`;
+  } else {
+    // Мягкая заливка под основным рядом.
+    const primary = series.find((item) => item.className.includes('line-primary'));
+    if (primary) {
+      let area = '', run = [];
+      const flush = () => {
+        if (run.length > 1) area += `M${run.map(([a, b]) => `${a.toFixed(2)},${b.toFixed(2)}`).join(' L')} L${run[run.length - 1][0].toFixed(2)},${(margin.top + innerH).toFixed(2)} L${run[0][0].toFixed(2)},${(margin.top + innerH).toFixed(2)} Z `;
+        run = [];
+      };
+      primary.values.forEach((value, index) => { if (value === null || value === undefined) flush(); else run.push([x(index), y(value)]); });
+      flush();
+      if (area) svg += `<path class="area-primary" fill="url(#${gradId})" d="${area.trim()}"></path>`;
+    }
+  }
 
   series.forEach((item) => {
     let path = '', drawing = false;
@@ -188,6 +253,21 @@ function renderLineChart(container, dates, series, options = {}) {
     svg += `<text class="exp-event-label ${event.className || ''}" x="${lx}" y="${margin.top - 10}" text-anchor="middle">${esc(event.label)}</text>`;
   });
 
+  // Последнее значение основного ряда — точка и подпись.
+  const lastPrimary = series.find((item) => item.className.includes('line-primary'));
+  if (lastPrimary && dates.length > 1) {
+    let li = lastPrimary.values.length - 1;
+    while (li >= 0 && (lastPrimary.values[li] === null || lastPrimary.values[li] === undefined)) li--;
+    if (li >= 0) {
+      const lx = x(li), ly = y(lastPrimary.values[li]);
+      svg += `<circle class="last-dot" r="6" cx="${lx}" cy="${ly}"></circle>`;
+      const label = esc(formatNumber(lastPrimary.values[li]));
+      const lw = label.length * 7.5 + 16;
+      const bx = Math.min(lx - lw / 2, width - margin.right - lw + 20), by = Math.max(2, ly - 36);
+      svg += `<g class="last-value"><rect x="${bx}" y="${by}" width="${lw}" height="24" rx="12"></rect><text x="${bx + lw / 2}" y="${by + 16}" text-anchor="middle">${label}</text></g>`;
+    }
+  }
+
   svg += `<line class="hover-line" id="${container.id}-hover" x1="0" y1="${margin.top}" x2="0" y2="${margin.top+innerH}" visibility="hidden"></line>`;
   series.forEach((item, seriesIndex) => {
     svg += `<circle id="${container.id}-point-${seriesIndex}" class="${item.className.includes('primary') ? 'point-primary' : 'point-black'}" r="5" cx="0" cy="0" visibility="hidden"></circle>`;
@@ -207,6 +287,7 @@ function renderLineChart(container, dates, series, options = {}) {
     hover.setAttribute('x1', xx); hover.setAttribute('x2', xx); hover.setAttribute('visibility', 'visible');
     let content = `<strong>${formatDate(dates[index])}</strong>`;
     series.forEach((item, seriesIndex) => {
+      const swatch = item.className.includes('primary') ? 'tt-dot primary' : 'tt-dot';
       const value = item.values[index];
       const point = container.querySelector(`#${container.id}-point-${seriesIndex}`);
       if (value === null || value === undefined) {
@@ -214,8 +295,15 @@ function renderLineChart(container, dates, series, options = {}) {
       } else {
         point.setAttribute('cx', xx); point.setAttribute('cy', y(value)); point.setAttribute('visibility', 'visible');
       }
-      content += `<br>${esc(item.name)}: ${value === null || value === undefined ? '—' : formatNumber(value)}`;
+      content += `<br><i class="${swatch}"></i>${esc(item.name)}: <b>${value === null || value === undefined ? '—' : formatNumber(value)}</b>`;
     });
+    if (planSeries && factSeries) {
+      const pv = planSeries.values[index], fv = factSeries.values[index];
+      if (pv !== null && pv !== undefined && fv !== null && fv !== undefined) {
+        const dv = fv - pv;
+        content += `<br><span class="tt-delta ${dv >= 0 ? 'up' : 'down'}">Отклонение: ${dv >= 0 ? '+' : ''}${formatNumber(dv)}</span>`;
+      }
+    }
     tooltip.innerHTML = content;
     tooltip.classList.add('visible');
     tooltip.style.left = `${Math.min(window.innerWidth - 280, event.clientX + 16)}px`;
@@ -241,8 +329,8 @@ function populateSelect(select, options, selected, valueKey = 'id', labelKey = '
 
 function executionCell(execution) {
   if (execution === null || execution === undefined) return '—';
-  const tier = execution >= 1 ? 'good' : execution >= 0.9 ? 'mid' : 'low';
-  return `<span class="exec-badge exec-${tier}">${pctf.format(execution)}</span>`;
+  const tier = executionTier(execution);
+  return `<span class="exec-cell"><span class="exec-badge exec-${tier}">${pctf.format(execution)}</span>${executionMeter(execution, tier)}</span>`;
 }
 
 // Прогноз лидов на конец месяца: факт полных дней месяца + среднее за последние
@@ -300,6 +388,7 @@ function renderLeadSummary() {
   const spoMonth = state.data.leads.entities.find(e => e.id === 'spo')?.monthlyPlans?.[summaryEnd.slice(0, 7)];
   $('#lead-summary-note').textContent = 'Только SEO-канал. План — за указанные дни. Прогноз — оценка по среднему последних 7 полных дней, не обязательство.' + (spoMonth ? ` СПО: только ГВ; план на полный месяц — ${formatNumber(spoMonth.total)} лидов.` : '');
   body.innerHTML = '';
+  const attention = [];
   state.data.leads.entities.forEach((entity) => {
     const idx = rangeIndexes(entity.dates, summaryStart, summaryEnd);
     const plan = sumNullable(idx.map((i) => entity.plan[i]));
@@ -311,6 +400,7 @@ function renderLeadSummary() {
       const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
     });
     const execCell = document.createElement('td'); execCell.innerHTML = executionCell(execution); row.appendChild(execCell);
+    attention.push({ id: entity.id, name: entity.name, execution });
     const fcCell = document.createElement('td');
     fcCell.innerHTML = forecastCell(entity.fact, entity.dates, entity.id === 'spo' && spoMonth ? spoMonth.total : null);
     row.appendChild(fcCell);
@@ -319,6 +409,21 @@ function renderLeadSummary() {
     row.appendChild(yoyCellNode);
     body.appendChild(row);
   });
+  renderLeadAttention(attention, formatPeriod(summaryStart, summaryEnd));
+}
+
+// Блок «Требует внимания»: те же значения выполнения и пороги, что в сводке месяца, без новых расчётов.
+function renderLeadAttention(items, period) {
+  const box = $('#lead-attention');
+  if (!box) return;
+  const planned = items.filter((item) => item.execution !== null && item.execution !== undefined);
+  const lagging = planned.filter((item) => item.execution < 1).sort((a, b) => a.execution - b.execution);
+  const onTrack = planned.length - lagging.length;
+  const noPlan = items.length - planned.length;
+  box.hidden = !items.length;
+  box.innerHTML = `<div class="attention-head"><p class="attention-title">${lagging.length ? 'Требует внимания' : 'Все проекты с планом в плане'}</p>`
+    + `<p class="attention-note">Сводка за ${period}: план выполняют ${onTrack} из ${planned.length}${noPlan ? ` · без плана: ${noPlan}` : ''}. Нажмите на проект, чтобы открыть его график.</p></div>`
+    + (lagging.length ? `<div class="attention-list">${lagging.map((item) => `<button type="button" class="attention-chip exec-${executionTier(item.execution)}" data-lead="${item.id}"><span>${item.name}</span><b>${pctf.format(item.execution)}</b></button>`).join('')}</div>` : '');
 }
 
 function leadPageGroup(entity) {
@@ -354,17 +459,27 @@ function renderLead() {
   const deviation = plan === null ? null : shownFact - plan;
   const execution = plan ? shownFact / plan : null;
   const share = group && fact ? groupFact / fact : null;
+  // План не детализирован по страницам: при выборе группы страниц показываем только факт,
+  // и вертикальная шкала масштабируется под значения группы, а не под план проекта.
+  const chart = aggregateRange(entity.dates, group ? [
+    { name: `Факт: ${group.name}`, values: group.fact, className: 'line-primary' },
+  ] : [
+    { name: 'План', values: entity.plan, className: 'line-black' },
+    { name: 'Факт', values: entity.fact, className: 'line-primary' },
+  ], state.leadFrom, state.leadTo, state.leadGranularity);
+  const factSpark = sparkline(chart.series[chart.series.length - 1].values);
   const period = formatPeriod(state.leadFrom, state.leadTo);
+  const tier = executionTier(execution);
   $('#lead-kpis').innerHTML = group ? [
-    kpi(`Факт за период: ${group.name}`, formatInt(groupFact), period, true),
-    kpi('Доля от проекта', share === null ? '—' : pctf.format(share), 'Факт группы к факту всего проекта'),
+    kpi(`Факт за период: ${group.name}`, formatInt(groupFact), period, true, factSpark),
+    kpi('Доля от проекта', share === null ? '—' : pctf.format(share), 'Факт группы к факту всего проекта', false, shareMeter(share)),
     kpi('План проекта за период', formatNumber(plan), plan === null ? 'План в модели не заполнен' : `${period} · страница плана не разделяет`),
-    kpi('Выполнение к плану проекта', execution === null ? '—' : pctf.format(execution), 'Факт группы к плану всего проекта'),
+    kpi('Выполнение к плану проекта', execution === null ? '—' : pctf.format(execution), 'Факт группы к плану всего проекта', false, executionMeter(execution)),
   ].join('') : [
-    kpi('Факт за период', formatInt(fact), period, true),
+    kpi('Факт за период', formatInt(fact), period, true, factSpark),
     kpi('План за период', formatNumber(plan), plan === null ? 'План в модели не заполнен' : period),
-    kpi('Отклонение', formatNumber(deviation), plan === null ? 'Недоступно без плана' : 'Факт минус план'),
-    kpi('Выполнение', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана' : 'Факт к плану'),
+    kpi('Отклонение', formatNumber(deviation), plan === null ? 'Недоступно без плана' : 'Факт минус план', false, '', deviation === null ? '' : deviation >= 0 ? 'kpi-delta-up' : 'kpi-delta-down'),
+    kpi('Выполнение', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана' : 'Факт к плану', false, executionMeter(execution, tier), tier ? `kpi-tier-${tier}` : ''),
   ].join('');
   $('#lead-chart-title').textContent = `${entity.name}: ${group ? 'факт по страницам' : 'план и факт лидов'}`;
   $('#lead-chart-note').textContent = `${entity.scope} · ${period} · ${granularityLabel(state.leadGranularity)}${group ? ` · страницы: ${group.name} · план по страницам не детализирован и не показывается` : ''}`;
@@ -389,17 +504,10 @@ function renderLead() {
       ? ` План на полный месяц ${month.slice(5)}.${month.slice(0,4)}: ${formatNumber(monthPlan.total)} по указанию пользователя; в исходной мере Power BI — ${formatNumber(monthPlan.sourceTotal)}. Дневные веса источника сохранены; основной график и верхние KPI показывают план только за выбранные дни.`
       : ' Дневной план — из Power BI; план за период и полный месячный план показаны отдельно.');
   }
-  // План не детализирован по страницам: при выборе группы страниц показываем только факт,
-  // и вертикальная шкала масштабируется под значения группы, а не под план проекта.
-  const chart = aggregateRange(entity.dates, group ? [
-    { name: `Факт: ${group.name}`, values: group.fact, className: 'line-primary' },
-  ] : [
-    { name: 'План', values: entity.plan, className: 'line-black' },
-    { name: 'Факт', values: entity.fact, className: 'line-primary' },
-  ], state.leadFrom, state.leadTo, state.leadGranularity);
   const legendPlan = $('#lead-legend-plan');
   if (legendPlan) legendPlan.hidden = Boolean(group);
-  renderLineChart($('#lead-chart'), chart.dates, chart.series, { width: entity.audit && window.innerWidth < 640 ? 360 : 1200 });
+  document.querySelectorAll('[data-gap-legend="lead"]').forEach((item) => { item.hidden = Boolean(group); });
+  renderLineChart($('#lead-chart'), chart.dates, chart.series, { width: window.innerWidth < 640 ? 360 : 1200, gap: !group });
   if (blogGroupOf(entity) && state.blog === undefined) {
     ensureBlogData().then(() => { if (state.leadId === entity.id && state.view === 'leads') renderLeadBlog(entity); });
   }
@@ -468,7 +576,7 @@ function renderDirection() {
     { name: 'План', values: direction.plan, className: 'line-black' },
     { name: 'Факт', values: direction.fact, className: 'line-primary' },
   ], state.directionFrom, state.directionTo, state.directionGranularity);
-  renderLineChart($('#direction-chart'), chart.dates, chart.series, { width: window.innerWidth < 640 ? 360 : 1200 });
+  renderLineChart($('#direction-chart'), chart.dates, chart.series, { width: window.innerWidth < 640 ? 360 : 1200, gap: true });
   renderDirectionSummary();
 }
 
@@ -651,19 +759,19 @@ function renderMedia() {
   const directTotal = sum(idx.map((i) => direct[i]));
   const total = seoTotal + directTotal;
   const period = formatPeriod(state.mediaFrom, state.mediaTo);
-  $('#media-kpis').innerHTML = [
-    kpi('SEO-визиты', formatInt(seoTotal), period, true),
-    kpi('Прямые визиты', formatInt(directTotal), period),
-    kpi('SEO + Direct', formatInt(total), 'Всего в двух каналах'),
-    kpi('Доля SEO', total ? pctf.format(seoTotal / total) : '—', 'В сумме SEO и Direct'),
-  ].join('');
-  const selectionLabel = project.id === 'skillbox-media' ? `${project.name} · ${label}` : project.name;
-  $('#media-chart-note').textContent = `${selectionLabel} · ${project.url} · ${period} · ${granularityLabel(state.mediaGranularity)}`;
   const chart = aggregateRange(project.dates, [
     { name: 'SEO', values: seo, className: 'line-primary' },
     { name: 'Прямой', values: direct, className: 'line-black' },
   ], state.mediaFrom, state.mediaTo, state.mediaGranularity);
-  renderLineChart($('#media-chart'), chart.dates, chart.series);
+  $('#media-kpis').innerHTML = [
+    kpi('SEO-визиты', formatInt(seoTotal), period, true, sparkline(chart.series[0].values)),
+    kpi('Прямые визиты', formatInt(directTotal), period, false, sparkline(chart.series[1].values)),
+    kpi('SEO + Direct', formatInt(total), 'Всего в двух каналах'),
+    kpi('Доля SEO', total ? pctf.format(seoTotal / total) : '—', 'В сумме SEO и Direct', false, total ? shareMeter(seoTotal / total) : ''),
+  ].join('');
+  const selectionLabel = project.id === 'skillbox-media' ? `${project.name} · ${label}` : project.name;
+  $('#media-chart-note').textContent = `${selectionLabel} · ${project.url} · ${period} · ${granularityLabel(state.mediaGranularity)}`;
+  renderLineChart($('#media-chart'), chart.dates, chart.series, { width: window.innerWidth < 640 ? 360 : 1200 });
   renderMediaMonthly(project.dates, seo, direct, state.mediaFrom, state.mediaTo);
   renderEditorialSummary(project, state.mediaFrom, state.mediaTo);
 }
@@ -842,6 +950,18 @@ async function init() {
       const entity = state.data.leads.entities.find((item) => item.id === state.leadId);
       if (!entity.pageGroups || !entity.pageGroups.some((g) => g.id === state.leadPage)) state.leadPage = 'all';
       renderLead(); updateUrl();
+    });
+    $('#lead-attention').addEventListener('click', (event) => {
+      const chip = event.target.closest('[data-lead]');
+      if (!chip) return;
+      // Drill down into the same monthly all-pages context as the attention summary.
+      state.leadPage = 'all';
+      state.leadFrom = `${state.data.meta.asOf.slice(0, 7)}-01`;
+      state.leadTo = state.data.meta.asOf;
+      const select = $('#lead-entity');
+      select.value = chip.dataset.lead;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      select.closest('.chart-card').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     });
     $('#lead-page').addEventListener('change', (event) => { state.leadPage = event.target.value; renderLead(); updateUrl(); });
     $('#direction-select').addEventListener('change', (event) => { state.direction = event.target.value; renderDirection(); updateUrl(); });
