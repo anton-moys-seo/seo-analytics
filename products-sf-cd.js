@@ -51,18 +51,18 @@
         <div class="ps-filter-grid">
           <label>Школа<select id="ps-school"><option value="all">Все школы</option><option value="sf">Skillfactory</option><option value="cd">Contented</option></select></label>
           <label>Продукт<select id="ps-page"></select></label>
-          <label>Поисковая система<select id="ps-engine" aria-describedby="ps-engine-hint"><option value="all">Google и Яндекс</option><option value="gsc">Google</option><option value="webmaster">Яндекс</option></select><span id="ps-engine-hint" class="ps-engine-hint" hidden>Для Power BI фильтр не применяется</span></label>
+          <label>Поисковая система<select id="ps-engine" aria-describedby="ps-engine-hint"><option value="all">Google и Яндекс</option><option value="gsc" selected>Google</option><option value="webmaster">Яндекс</option></select><span id="ps-engine-hint" class="ps-engine-hint" hidden>Для Power BI фильтр не применяется</span></label>
           <label>Показатель<select id="ps-metric"></select></label>
           <label>Детализация<select id="ps-grain"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
           <label>Дата с<input id="ps-from" type="date"></label><label>Дата по<input id="ps-to" type="date"></label>
         </div><p id="ps-error" class="ps-error" role="alert" hidden></p><p id="ps-source-note" class="ps-note"></p></article>
       <div id="ps-kpis" class="ps-kpis" aria-live="polite"></div>
-      <article id="ps-chart-card" class="chart-card ps-chart-card"><div class="card-heading"><div><h3 id="ps-chart-title">Динамика</h3><p id="ps-chart-note"></p></div><div id="ps-legend" class="ps-legend" role="group" aria-label="Источники графика"></div></div>
-        <div id="ps-chart" class="ps-chart" role="img" aria-label="Динамика выбранного показателя"></div><p id="ps-chart-empty" class="ps-note" hidden></p>
+      <article id="ps-chart-card" class="chart-card ps-chart-card"><div class="card-heading chart-heading-safe"><div><h3 id="ps-chart-title">Динамика</h3><p id="ps-chart-note"></p></div><div id="ps-legend" class="ps-legend" role="group" aria-label="Источники графика"></div></div>
+        <div id="ps-chart" class="chart ps-chart" role="group" aria-label="Динамика выбранного показателя"></div><p id="ps-chart-status" class="ps-sr-only" role="status" aria-live="polite" aria-atomic="true"></p><p id="ps-chart-empty" class="ps-note" hidden></p>
         <details id="ps-series-details" class="ps-series"><summary>Показать данные графика</summary><div class="table-wrap ps-series-wrap"><table><thead><tr><th scope="col">Период</th><th scope="col">Источник</th><th scope="col">Значение</th><th scope="col">Покрытие</th></tr></thead><tbody id="ps-series-body"></tbody></table></div></details></article>
       <article id="ps-table-card" class="table-card ps-table-card"><div class="card-heading ps-table-heading"><div><h3>Страницы</h3><p>Итоги за выбранный период и покрытие данных</p></div><label class="ps-search-label">Поиск по названию или URL<input id="ps-search" type="search" placeholder="Название или адрес"></label></div>
-        <p class="ps-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть все столбцы.</p><div class="table-wrap ps-table-wrap"><table><thead id="ps-thead"></thead><tbody id="ps-tbody"></tbody></table></div><p id="ps-table-empty" class="ps-note" hidden></p></article>`;
-    refs = Object.fromEntries(['notice','school','page','engine','engine-hint','metric','grain','from','to','error','source-note','kpis','chart-card','chart-title','chart-note','legend','chart','chart-empty','series-details','series-body','table-card','search','thead','tbody','table-empty'].map((id) => [id, section.querySelector('#ps-' + id)]));
+        <p id="ps-trend-note" class="ps-note ps-trend-note"></p><p class="ps-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть все столбцы.</p><div class="table-wrap ps-table-wrap"><table><thead id="ps-thead"></thead><tbody id="ps-tbody"></tbody></table></div><p id="ps-table-empty" class="ps-note" hidden></p></article>`;
+    refs = Object.fromEntries(['notice','school','page','engine','engine-hint','metric','grain','from','to','error','source-note','kpis','chart-card','chart-title','chart-note','legend','chart','chart-status','chart-empty','series-details','series-body','table-card','trend-note','search','thead','tbody','table-empty'].map((id) => [id, section.querySelector('#ps-' + id)]));
   }
   function restore() {
     const params = new URLSearchParams(location.search);
@@ -131,49 +131,105 @@
         el('td', value(point.value, metric, isBi)), el('td', coverage(point.coverage, !isBi && metric === 'position')));
       body.append(row);
     }
-    const container = refs.chart, legend = refs.legend; container.replaceChildren(); legend.replaceChildren();
+    const container = refs.chart, legend = refs.legend; container.replaceChildren(); legend.replaceChildren(); refs['chart-status'].textContent = '';
     const visible = points.filter((p) => p.value !== null && Number.isFinite(p.value));
     refs['chart-empty'].hidden = visible.length > 0;
     refs['chart-empty'].textContent = visible.length ? '' : 'Нет доступных значений для выбранных условий.';
     if (!visible.length) return;
-    const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 1000 300'); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
+    const NS = 'http://www.w3.org/2000/svg';
+    const node = (tag, attrs, text) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v); if (text != null) n.textContent = text; return n; };
+    const mobile = window.innerWidth < 700;
+    const width = mobile ? Math.max(300, container.clientWidth) : 1200, height = mobile ? 300 : 430;
+    const margin = {top: 24, right: mobile ? 20 : 28, bottom: 54, left: mobile ? 68 : 100};
+    const innerW = width - margin.left - margin.right, innerH = height - margin.top - margin.bottom;
+    const svg = node('svg', {viewBox: `0 0 ${width} ${height}`, tabindex: '0', role: 'img',
+      'aria-label': `${refs['chart-title'].textContent}. Стрелки влево и вправо: значения по датам.`, 'aria-describedby': 'ps-chart-status'});
     const periods = [...new Set(points.map((p) => p.period))], values = visible.map((p) => p.value);
     const isPosition = !isBi && metric === 'position';
     let lo = isPosition ? Math.min(...values) : Math.min(0, ...values), hi = Math.max(...values);
-    if (lo === hi) { lo = isPosition ? Math.max(1, lo - 1) : Math.min(0, lo - 1); hi += 1; }
-    for (let i = 0; i < 4; i++) { const line = document.createElementNS(NS, 'line'); line.setAttribute('x1', '0'); line.setAttribute('x2', '1000'); line.setAttribute('y1', String(20 + i * 80)); line.setAttribute('y2', String(20 + i * 80)); line.setAttribute('class', 'ps-gridline'); svg.append(line); }
+    if (lo === hi) { lo = isPosition ? Math.max(0, lo - 1) : Math.min(0, lo - 1); hi += 1; }
+    const rough = (hi - lo) / 5, magnitude = 10 ** Math.floor(Math.log10(rough)), normalized = rough / magnitude;
+    const step = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude;
+    lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+    const x = (i) => margin.left + (periods.length === 1 ? innerW / 2 : i / (periods.length - 1) * innerW);
+    const y = (v) => margin.top + (isPosition ? (v - lo) : (hi - v)) / (hi - lo) * innerH;
+    for (let i = 0; i <= Math.round((hi - lo) / step); i++) {
+      const tick = lo + i * step, yy = y(tick);
+      svg.append(node('line', {class: 'grid-line', x1: margin.left, x2: width - margin.right, y1: yy, y2: yy}),
+        node('text', {class: 'axis-label', x: margin.left - 12, y: yy + 4, 'text-anchor': 'end'}, value(tick, metric, isBi)));
+    }
+    svg.append(node('line', {class: 'axis-line', x1: margin.left, x2: margin.left, y1: margin.top, y2: margin.top + innerH}),
+      node('line', {class: 'axis-line', x1: margin.left, x2: width - margin.right, y1: margin.top + innerH, y2: margin.top + innerH}));
+    const tickStep = Math.max(1, Math.ceil((periods.length - 1) / (window.innerWidth < 700 ? 4 : 8)));
+    const ticks = []; for (let i = 0; i < periods.length; i += tickStep) ticks.push(i);
+    if (ticks.at(-1) !== periods.length - 1) { if (ticks.length > 1 && periods.length - 1 - ticks.at(-1) < tickStep * .65) ticks.pop(); ticks.push(periods.length - 1); }
+    for (const i of ticks) {
+      const interval = points.find((p) => p.period === periods[i]);
+      const label = node('text', {class: 'axis-label ps-x-tick', x: x(i), y: height - 28, 'text-anchor': 'middle',
+        'data-from': interval.from, 'data-to': interval.to});
+      label.append(node('tspan', {x: x(i)}, dateLabel(interval.from).slice(0, 5)));
+      if (interval.from !== interval.to) label.append(node('tspan', {x: x(i), dy: 16}, '–' + dateLabel(interval.to).slice(0, 5)));
+      svg.append(label);
+    }
     const engines = [...new Set(points.map((p) => p.engine || (isBi ? 'bi' : '')))];
-    for (const engine of engines) {
-      const list = points.filter((p) => (p.engine || (isBi ? 'bi' : '')) === engine);
-      let d = '', drawing = false;
-      for (let i = 0; i < list.length; i++) {
-        const p = list[i];
-        if (p.value === null || !Number.isFinite(p.value)) { drawing = false; continue; }
-        const x = periods.length === 1 ? 500 : (periods.indexOf(p.period) / (periods.length - 1)) * 980 + 10;
-        const ratio = (p.value - lo) / (hi - lo), y = isPosition ? 20 + ratio * 240 : 260 - ratio * 240;
-        d += `${drawing ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)} `;
-        const next = list[i + 1], isolated = !drawing && (!next || next.value === null || !Number.isFinite(next.value));
-        const dot = document.createElementNS(NS, 'circle'); dot.setAttribute('cx', x.toFixed(2)); dot.setAttribute('cy', y.toFixed(2));
-        dot.setAttribute('r', periods.length <= 36 || isolated ? '4' : '6');
-        dot.setAttribute('fill', periods.length <= 36 || isolated ? COLORS[engine] : 'transparent');
-        const title = document.createElementNS(NS, 'title');
-        const interval = dateLabel(p.from) + (p.to === p.from ? '' : '–' + dateLabel(p.to));
-        title.textContent = `${SOURCES[engine]} · ${interval}: ${value(p.value, metric, isBi)} · ${coverage(p.coverage, !isBi && metric === 'position')}`;
-        dot.append(title); svg.append(dot); drawing = true;
-      }
-      const path = document.createElementNS(NS, 'path'); path.setAttribute('d', d); path.setAttribute('fill', 'none'); path.setAttribute('stroke', COLORS[engine]); path.setAttribute('stroke-width', '3'); path.setAttribute('vector-effect', 'non-scaling-stroke'); path.setAttribute('pointer-events', 'none'); svg.append(path);
-      const label = el('span', null, 'ps-legend-item'), mark = el('i'); mark.style.background = COLORS[engine]; label.append(mark, document.createTextNode(SOURCES[engine])); legend.append(label);
+    const series = engines.map((engine) => ({engine, points: new Map(points.filter((p) => (p.engine || (isBi ? 'bi' : '')) === engine).map((p) => [p.period, p]))}));
+    const defs = node('defs'), gradient = node('linearGradient', {id: 'ps-area-grad', x1: 0, y1: 0, x2: 0, y2: 1});
+    gradient.append(node('stop', {offset: 0, class: 'area-stop-top'}), node('stop', {offset: 1, class: 'area-stop-bottom'})); defs.append(gradient); svg.append(defs);
+    for (const s of series) {
+      let d = '', run = [], area = '';
+      const flush = () => { if (run.length > 1) area += `M${run.join(' L')} L${run.at(-1).split(',')[0]},${margin.top + innerH} L${run[0].split(',')[0]},${margin.top + innerH} Z `; run = []; };
+      periods.forEach((period, i) => {
+        const p = s.points.get(period);
+        if (!p || p.value === null || !Number.isFinite(p.value)) { flush(); return; }
+        const point = `${x(i).toFixed(2)},${y(p.value).toFixed(2)}`;
+        d += `${run.length ? 'L' : 'M'}${point} `; run.push(point);
+      }); flush();
+      const primary = COLORS[s.engine] === COLORS.gsc;
+      if (primary && area) svg.append(node('path', {class: 'area-primary', fill: 'url(#ps-area-grad)', d: area}));
+      svg.append(node('path', {class: primary ? 'line-primary' : 'line-black', d}));
+      // Keep isolated observations visible without drawing across missing dates.
+      periods.forEach((period, i) => {
+        const p = s.points.get(period), prev = s.points.get(periods[i - 1]), next = s.points.get(periods[i + 1]);
+        if (p?.value != null && prev?.value == null && next?.value == null) svg.append(node('circle', {class: primary ? 'point-primary' : 'point-black', cx: x(i), cy: y(p.value), r: 5}));
+      });
+      const label = el('span', null, 'ps-legend-item'), mark = el('i'); mark.style.background = COLORS[s.engine]; if (!primary) mark.className = 'ps-dashed'; label.append(mark, document.createTextNode(SOURCES[s.engine])); legend.append(label);
     }
-    const plot = el('div', null, 'ps-plot'), axis = el('div', null, 'ps-y-axis');
-    axis.setAttribute('aria-hidden', 'true');
-    for (let i = 0; i < 4; i++) {
-      const tick = isPosition ? lo + (hi - lo) * i / 3 : hi - (hi - lo) * i / 3;
-      axis.append(el('span', value(tick, metric, isBi)));
-    }
-    plot.append(axis, svg); container.append(plot);
-    const range = el('div', null, 'ps-axis-labels'); range.append(el('span', dateLabel(periods[0])), el('span', dateLabel(periods[periods.length - 1]))); container.append(range);
-    const yLabels = el('div', null, 'ps-value-range'); yLabels.textContent = metric === 'position' && !isBi ? `Позиция: ${value(lo, metric)}–${value(hi, metric)} · меньше — выше` : `Диапазон: ${value(lo, metric, isBi)}–${value(hi, metric, isBi)}`; container.append(yLabels);
+    const hover = node('line', {class: 'hover-line', y1: margin.top, y2: margin.top + innerH, visibility: 'hidden'});
+    svg.append(hover);
+    const dots = series.map((s) => { const dot = node('circle', {class: COLORS[s.engine] === COLORS.gsc ? 'point-primary' : 'point-black', r: 5, visibility: 'hidden'}); svg.append(dot); return dot; });
+    const hit = node('rect', {class: 'hit-area', x: margin.left, y: margin.top, width: innerW, height: innerH}); svg.append(hit);
+    const tooltip = el('div', null, 'tooltip ps-tooltip'); tooltip.id = 'ps-tooltip'; tooltip.setAttribute('role', 'tooltip');
+    let active = periods.length - 1;
+    const hide = () => { tooltip.classList.remove('visible'); hover.setAttribute('visibility', 'hidden'); dots.forEach((dot) => dot.setAttribute('visibility', 'hidden')); refs['chart-status'].textContent = ''; };
+    const show = (index, event) => {
+      active = Math.max(0, Math.min(periods.length - 1, index)); const xx = x(active);
+      hover.setAttribute('x1', xx); hover.setAttribute('x2', xx); hover.setAttribute('visibility', 'visible');
+      tooltip.replaceChildren();
+      const sample = series.map((s) => s.points.get(periods[active])).find(Boolean);
+      tooltip.append(el('strong', dateLabel(sample.from) + (sample.from === sample.to ? '' : '–' + dateLabel(sample.to))), el('div', refs.metric.selectedOptions[0].textContent));
+      series.forEach((s, i) => {
+        const p = s.points.get(periods[active]), v = p?.value;
+        dots[i].setAttribute('visibility', v == null ? 'hidden' : 'visible');
+        if (v != null) { dots[i].setAttribute('cx', xx); dots[i].setAttribute('cy', y(v)); }
+        const row = el('div'); row.append(document.createTextNode(`${SOURCES[s.engine]}: `), el('b', value(v, metric, isBi))); tooltip.append(row);
+      });
+      if (!event) refs['chart-status'].textContent = [...tooltip.children].map((item) => item.textContent).join('. ');
+      tooltip.classList.add('visible');
+      const rect = svg.getBoundingClientRect(), box = tooltip.getBoundingClientRect();
+      const left = event?.clientX ?? rect.left + xx / width * rect.width, top = event?.clientY ?? rect.top + 40;
+      tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - box.width - 8, left + 16))}px`;
+      tooltip.style.top = `${Math.max(8, Math.min(window.innerHeight - box.height - 8, top + 16))}px`;
+    };
+    hit.addEventListener('pointermove', (event) => { const rect = svg.getBoundingClientRect(); show(Math.round(((event.clientX - rect.left) * width / rect.width - margin.left) / innerW * (periods.length - 1)), event); });
+    svg.addEventListener('pointerleave', hide); svg.addEventListener('blur', hide);
+    svg.addEventListener('focus', () => show(active));
+    svg.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') { hide(); return; }
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault(); show(event.key === 'Home' ? 0 : event.key === 'End' ? periods.length - 1 : active + (event.key === 'ArrowLeft' ? -1 : 1));
+    });
+    container.append(svg, tooltip);
+    if (isPosition) container.append(el('p', 'Средняя позиция: меньшее значение — выше в поиске', 'ps-value-range'));
   }
   function buildTable(selected, isBi, metric, spec) {
     const heads = ['Страница', 'Школа'];
@@ -181,6 +237,11 @@
     if (isBi) heads.push(spec.label, 'Покрытие');
     else for (const engine of engines) heads.push(SOURCES[engine], 'Покрытие');
     const headRow = el('tr'); heads.forEach((name) => headRow.append(el('th', name))); refs.thead.replaceChildren(headRow); refs.tbody.replaceChildren();
+    headRow.append(el('th', 'Динамика поиска'));
+    const trendEngine = isBi ? 'all' : selected.engine;
+    const windows = M.trend(data, {...selected, engine: trendEngine}).windows;
+    const trendSources = trendEngine === 'all' ? 'Google и Яндекс' : SOURCES[trendEngine];
+    refs['trend-note'].textContent = windows ? `Динамика поиска: ${dateLabel(windows.before.from)}–${dateLabel(windows.before.to)} → ${dateLabel(windows.after.from)}–${dateLabel(windows.after.to)} (по ${windows.days} дн.). Поисковики: ${trendSources}. Сравниваем равные половины выбранного периода; при нечётном числе дней середина исключена. Зелёный — кликов больше и позиция лучше (число меньше); розовый — кликов меньше и позиция хуже (число больше). Позицию взвешиваем по показам. Окрашиваем только при полном покрытии обоих окон; при двух системах обе должны подтвердить направление. Пропуски, предварительные данные, разнонаправленные и неизменившиеся показатели — без подсветки.${isBi ? ' Здесь сравниваем Google и Яндекс, независимо от выбранной меры Power BI.' : ''}` : `Поисковики: ${trendSources}. Для сравнения динамики поиска выберите не менее двух дней.`;
     const q = refs.search.value.trim().toLocaleLowerCase('ru');
     const pages = data.pages.filter((p) => (selected.school === 'all' || p.school === selected.school) && (selected.pageId === 'all' || p.id === selected.pageId) && (!q || `${p.name} ${p.url}`.toLocaleLowerCase('ru').includes(q)));
     for (const p of pages) {
@@ -199,7 +260,15 @@
         const r = M.search(data, {...selected, pageId: p.id, metric, grain: 'day'});
         for (const engine of engines) { const total = totals(r.points.filter((x) => x.engine === engine), metric); tr.append(el('td', value(total.value, metric), 'ps-num'), el('td', coverage(total, metric === 'position'), 'ps-coverage')); }
       }
-      refs.tbody.append(tr);
+      const trend = M.trend(data, {...selected, pageId: p.id, engine: trendEngine});
+      if (trend.state === 'up' || trend.state === 'down') tr.className = 'ps-trend-' + trend.state;
+      const status = el('td', null, 'ps-trend');
+      const labels = {up: 'Рост кликов и позиции', down: 'Падение кликов и позиции', neutral: 'Без совместного роста или падения', insufficient: 'Недостаточно полных данных'};
+      status.append(el('strong', labels[trend.state]));
+      for (const source of trend.engines) {
+        status.append(el('div', `${SOURCES[source.engine]}: ${source.state === 'insufficient' ? 'недостаточно полных данных' : `клики ${value(source.before.clicks, 'clicks')} → ${value(source.after.clicks, 'clicks')}; позиция ${value(source.before.position, 'position')} → ${value(source.after.position, 'position')}`}`));
+      }
+      tr.append(status); refs.tbody.append(tr);
     }
     refs['table-empty'].hidden = pages.length > 0; refs['table-empty'].textContent = pages.length ? '' : 'Страницы не найдены.';
   }
@@ -215,7 +284,8 @@
     const selected = settings(), rawMetric = refs.metric.value, isBi = rawMetric.startsWith('bi:'), metric = isBi ? rawMetric.slice(3) : rawMetric;
     const spec = isBi ? data.meta.biMetrics?.[metric] : null;
     refs.engine.disabled = isBi;
-    refs['engine-hint'].hidden = !isBi;
+    refs['engine-hint'].hidden = false;
+    refs['engine-hint'].textContent = isBi ? 'Для Power BI фильтр не применяется' : 'По умолчанию Google: у Яндекса ограничена история. В режиме двух систем нужны полные данные обеих; при неполном покрытии выберите Google.';
     refs.kpis.replaceChildren();
     const selection = M.selection(data, selected), pageCount = selection.pages.length;
     if (selection.clipped) {
@@ -272,7 +342,13 @@
       Object.entries(data.meta.biMetrics || {}).forEach(([key, spec]) => option(refs.metric, 'bi:' + key, spec.label + (spec.available === false ? ' · нет данных' : '')));
       restore(); describeSources();
       ['school', 'page', 'engine', 'metric', 'grain', 'from', 'to'].forEach((key) => refs[key].addEventListener('change', () => { if (key === 'school') fillPages(); render(); }));
-      refs.search.addEventListener('input', render); render();
+      refs.search.addEventListener('input', render);
+      let resizeFrame;
+      window.addEventListener('resize', () => {
+        if (!refs.chart.isConnected) return;
+        cancelAnimationFrame(resizeFrame); resizeFrame = requestAnimationFrame(render);
+      });
+      render();
     }).catch(() => { data = null; section.replaceChildren(el('div', 'Не удалось загрузить данные раздела. Проверьте ссылку и попробуйте ещё раз.', 'empty')); }).finally(() => { pending = null; });
     return pending;
   };

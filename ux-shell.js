@@ -49,7 +49,6 @@
     { id: 'media', title: 'Медиатрафик', tone: 'mint', items: [
       { view: 'media', label: 'Трафик', hint: 'SEO и прямой трафик, редакции', icon: 'traffic' },
       { view: 'recovery', label: 'Мониторинг метатегов', hint: 'Когорта страниц до и после', icon: 'tags' },
-      { view: 'updates', label: 'Апдейты статей', hint: 'Окна до/после по когортам', icon: 'refresh' },
       { view: 'updates-all', label: 'Апдейты ALL', hint: 'Все апдейты: трафик, позиции, сигналы', icon: 'stack' },
     ] },
     { id: 'experiment', title: 'Эксперименты', tone: 'pink', items: [

@@ -72,6 +72,10 @@ function sumNullable(values) {
   const valid = values.filter((value) => value !== null && value !== undefined);
   return valid.length ? sum(valid) : null;
 }
+// План за период имеет смысл только при наличии плана на каждый выбранный день.
+function sumComplete(values) {
+  return values.length && values.every(Number.isFinite) ? sum(values) : null;
+}
 function rangeIndexes(dates, start, end) {
   return dates.map((day, index) => ({ day, index })).filter((item) => item.day >= start && item.day <= end).map((item) => item.index);
 }
@@ -95,7 +99,7 @@ function aggregateRange(dates, series, start, end, granularity) {
   const groupedDates = [...groups.keys()];
   const groupedSeries = series.map((item, seriesIndex) => ({
     ...item,
-    values: groupedDates.map((key) => sumNullable(groups.get(key)[seriesIndex])),
+    values: groupedDates.map((key) => (item.requireComplete ? sumComplete : sumNullable)(groups.get(key)[seriesIndex])),
   }));
   return { dates: groupedDates, series: groupedSeries };
 }
@@ -386,12 +390,12 @@ function renderLeadSummary() {
   const summaryStart = `${summaryEnd.slice(0, 7)}-01`;
   $('#lead-summary-title').textContent = `Сводка за ${formatPeriod(summaryStart, summaryEnd)}`;
   const spoMonth = state.data.leads.entities.find(e => e.id === 'spo')?.monthlyPlans?.[summaryEnd.slice(0, 7)];
-  $('#lead-summary-note').textContent = 'Только SEO-канал. План — за указанные дни. Прогноз — оценка по среднему последних 7 полных дней, не обязательство.' + (spoMonth ? ` СПО: только ГВ; план на полный месяц — ${formatNumber(spoMonth.total)} лидов.` : '');
+  $('#lead-summary-note').textContent = 'Только SEO-канал. План — за указанные дни. Если есть дни без плана, план за период, отклонение и выполнение не рассчитываются. Прогноз — оценка по среднему последних 7 полных дней, не обязательство.' + (spoMonth ? ` СПО: только ГВ; план на полный месяц — ${formatNumber(spoMonth.total)} лидов.` : '');
   body.innerHTML = '';
   const attention = [];
   state.data.leads.entities.forEach((entity) => {
     const idx = rangeIndexes(entity.dates, summaryStart, summaryEnd);
-    const plan = sumNullable(idx.map((i) => entity.plan[i]));
+    const plan = sumComplete(idx.map((i) => entity.plan[i]));
     const fact = sum(idx.map((i) => entity.fact[i]));
     const deviation = plan === null ? null : fact - plan;
     const execution = plan ? fact / plan : null;
@@ -421,8 +425,8 @@ function renderLeadAttention(items, period) {
   const onTrack = planned.length - lagging.length;
   const noPlan = items.length - planned.length;
   box.hidden = !items.length;
-  box.innerHTML = `<div class="attention-head"><p class="attention-title">${lagging.length ? 'Требует внимания' : 'Все проекты с планом в плане'}</p>`
-    + `<p class="attention-note">Сводка за ${period}: план выполняют ${onTrack} из ${planned.length}${noPlan ? ` · без плана: ${noPlan}` : ''}. Нажмите на проект, чтобы открыть его график.</p></div>`
+  box.innerHTML = `<div class="attention-head"><p class="attention-title">${!planned.length ? 'План на период не задан' : lagging.length ? 'Требует внимания' : 'Все проекты с планом в плане'}</p>`
+    + `<p class="attention-note">Сводка за ${period}: ${planned.length ? `план выполняют ${onTrack} из ${planned.length}${noPlan ? ` · без полного плана: ${noPlan}` : ''}. Нажмите на проект, чтобы открыть его график.` : 'нет проектов с доступным планом на весь период.'}</p></div>`
     + (lagging.length ? `<div class="attention-list">${lagging.map((item) => `<button type="button" class="attention-chip exec-${executionTier(item.execution)}" data-lead="${item.id}"><span>${item.name}</span><b>${pctf.format(item.execution)}</b></button>`).join('')}</div>` : '');
 }
 
@@ -452,7 +456,7 @@ function renderLead() {
   setDateInputs('lead', entity.dates, state.leadFrom, state.leadTo);
   $('#lead-granularity').value = state.leadGranularity;
   const idx = rangeIndexes(entity.dates, state.leadFrom, state.leadTo);
-  const plan = sumNullable(idx.map((i) => entity.plan[i]));
+  const plan = sumComplete(idx.map((i) => entity.plan[i]));
   const fact = sum(idx.map((i) => entity.fact[i]));
   const groupFact = group ? sum(idx.map((i) => group.fact[i])) : null;
   const shownFact = group ? groupFact : fact;
@@ -464,7 +468,7 @@ function renderLead() {
   const chart = aggregateRange(entity.dates, group ? [
     { name: `Факт: ${group.name}`, values: group.fact, className: 'line-primary' },
   ] : [
-    { name: 'План', values: entity.plan, className: 'line-black' },
+    { name: 'План', values: entity.plan, className: 'line-black', requireComplete: true },
     { name: 'Факт', values: entity.fact, className: 'line-primary' },
   ], state.leadFrom, state.leadTo, state.leadGranularity);
   const factSpark = sparkline(chart.series[chart.series.length - 1].values);
@@ -473,16 +477,16 @@ function renderLead() {
   $('#lead-kpis').innerHTML = group ? [
     kpi(`Факт за период: ${group.name}`, formatInt(groupFact), period, true, factSpark),
     kpi('Доля от проекта', share === null ? '—' : pctf.format(share), 'Факт группы к факту всего проекта', false, shareMeter(share)),
-    kpi('План проекта за период', formatNumber(plan), plan === null ? 'План в модели не заполнен' : `${period} · страница плана не разделяет`),
-    kpi('Выполнение к плану проекта', execution === null ? '—' : pctf.format(execution), 'Факт группы к плану всего проекта', false, executionMeter(execution)),
+    kpi('План проекта за период', formatNumber(plan), plan === null ? 'План за период недоступен: есть дни без плана' : `${period} · страница плана не разделяет`),
+    kpi('Выполнение к плану проекта', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана на все дни периода' : 'Факт группы к плану всего проекта', false, executionMeter(execution)),
   ].join('') : [
     kpi('Факт за период', formatInt(fact), period, true, factSpark),
-    kpi('План за период', formatNumber(plan), plan === null ? 'План в модели не заполнен' : period),
+    kpi('План за период', formatNumber(plan), plan === null ? 'План за период недоступен: есть дни без плана' : period),
     kpi('Отклонение', formatNumber(deviation), plan === null ? 'Недоступно без плана' : 'Факт минус план', false, '', deviation === null ? '' : deviation >= 0 ? 'kpi-delta-up' : 'kpi-delta-down'),
     kpi('Выполнение', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана' : 'Факт к плану', false, executionMeter(execution, tier), tier ? `kpi-tier-${tier}` : ''),
   ].join('');
   $('#lead-chart-title').textContent = `${entity.name}: ${group ? 'факт по страницам' : 'план и факт лидов'}`;
-  $('#lead-chart-note').textContent = `${entity.scope} · ${period} · ${granularityLabel(state.leadGranularity)}${group ? ` · страницы: ${group.name} · план по страницам не детализирован и не показывается` : ''}`;
+  $('#lead-chart-note').textContent = `${entity.scope} · ${period} · ${granularityLabel(state.leadGranularity)}${group ? ` · страницы: ${group.name} · план по страницам не детализирован и не показывается` : plan === null ? ' · есть дни без плана; сравнение за весь период недоступно' : ''}`;
   const auditBox = $('#lead-audit');
   auditBox.hidden = !entity.audit;
   auditBox.closest('.chart-card').classList.toggle('audited-leads', Boolean(entity.audit));
@@ -560,7 +564,7 @@ function renderDirection() {
   setDateInputs('direction', dates, state.directionFrom, state.directionTo);
   $('#direction-granularity').value = state.directionGranularity;
   const idx = rangeIndexes(dates, state.directionFrom, state.directionTo);
-  const plan = sumNullable(idx.map((i) => direction.plan[i]));
+  const plan = sumComplete(idx.map((i) => direction.plan[i]));
   const fact = sum(idx.map((i) => direction.fact[i]));
   const deviation = plan === null ? null : fact - plan;
   const execution = plan ? fact / plan : null;
@@ -571,9 +575,9 @@ function renderDirection() {
     `<span class="mini-kpi">Отклонение <b>${formatNumber(deviation)}</b></span>`,
     `<span class="mini-kpi">Выполнение <b>${execution === null ? '—' : pctf.format(execution)}</b></span>`,
   ].join('');
-  $('#direction-chart-note').textContent = `${direction.name} · ${period} · ${granularityLabel(state.directionGranularity)}`;
+  $('#direction-chart-note').textContent = `${direction.name} · ${period} · ${granularityLabel(state.directionGranularity)}${plan === null ? ' · есть дни без плана; сравнение за весь период недоступно' : ''}`;
   const chart = aggregateRange(dates, [
-    { name: 'План', values: direction.plan, className: 'line-black' },
+    { name: 'План', values: direction.plan, className: 'line-black', requireComplete: true },
     { name: 'Факт', values: direction.fact, className: 'line-primary' },
   ], state.directionFrom, state.directionTo, state.directionGranularity);
   renderLineChart($('#direction-chart'), chart.dates, chart.series, { width: window.innerWidth < 640 ? 360 : 1200, gap: true });
@@ -586,12 +590,14 @@ function renderDirectionSummary() {
   const idx = rangeIndexes(dates, state.directionFrom, state.directionTo);
   const period = formatPeriod(state.directionFrom, state.directionTo);
   const rows = state.data.leads.coreDirections.map((direction) => {
-    const plan = sumNullable(idx.map((i) => direction.plan[i]));
+    const plan = sumComplete(idx.map((i) => direction.plan[i]));
     const fact = sum(idx.map((i) => direction.fact[i]));
     return { name: direction.name, plan, fact, series: direction.fact };
   });
   const core = state.data.leads.entities.find((item) => item.id === 'core');
-  const totalPlan = sumNullable(rows.map((r) => r.plan));
+  // У части направлений нет плана: итог берём из плана проекта, а не суммы строк.
+  const coreIdx = rangeIndexes(core.dates, state.directionFrom, state.directionTo);
+  const totalPlan = sumComplete(coreIdx.map((i) => core.plan[i]));
   const totalFact = sum(rows.map((r) => r.fact));
   const row = (name, plan, fact, series, total) => {
     const deviation = plan === null ? null : fact - plan;
@@ -605,7 +611,7 @@ function renderDirectionSummary() {
   body.innerHTML = withPlan.map((r) => row(r.name, r.plan, r.fact, r.series, false)).join('')
     + noPlan.map((r) => row(r.name, r.plan, r.fact, r.series, false)).join('')
     + row('Итого core', totalPlan, totalFact, core.fact, true);
-  $('#direction-summary-note').textContent = `Все направления Skillbox core · SEO · ${period} · период берётся из фильтров графика направлений. Направления без плана — в конце таблицы. Прогноз — оценка на конец месяца по последним 7 полным дням.`;
+  $('#direction-summary-note').textContent = `Все направления Skillbox core · SEO · ${period} · период берётся из фильтров графика направлений. Направления без полного плана — в конце таблицы. Если есть дни без плана, план за период, отклонение и выполнение не рассчитываются. Итоговый план — план проекта core. Прогноз — оценка на конец месяца по последним 7 полным дням.`;
 }
 
 const FC_COEF_SOURCE = { own: 'сезонность этого направления в 2025', core: 'база прошлого года мала — взят коэффициент core', neutral: 'прошлый год — фаза запуска, коэффициент 1,00' };
@@ -648,9 +654,9 @@ function forecastDemandCell(row, total) {
     return '<td class="fc-d fc-soft" title="нет строки спроса в файле отслеживания">—</td>';
   }
   const factor = row.demandFactor !== null && row.demandFactor !== undefined
-    ? `спрос-фактор ×${nf.format(row.demandFactor)} — сезонность спроса ноя/окт 2025` : '';
+    ? `спрос-фактор ×${nf.format(row.demandFactor)} — сезонность спроса ${fcShort(state.forecast.meta.months.next)}/${fcShort(state.forecast.meta.months.cur)} 2025` : '';
   const cover = total && row.demandCover
-    ? ` · покрытие спросом: ${row.demandCover} ${row.demandCover === 9 ? 'направлений' : 'проект'} из ${row.name.includes('core') ? '13' : '6'}` : '';
+    ? ` · покрытие спросом: ${row.demandCover} ${row.demandCover === 9 ? 'направлений' : 'проект'} из ${row.name.includes('core') ? state.forecast.directions.length : state.forecast.projects.length}` : '';
   return `<td class="fc-d"${factor || cover ? ` title="${factor}${cover}"` : ''}>${formatInt(row.nextDemand)}${cover ? '<span class="fc-soft">*</span>' : ''}</td>`;
 }
 
@@ -672,7 +678,21 @@ function renderForecast() {
   const fc = state.forecast;
   if (!fc) return;
   const meta = fc.meta;
-  const months = meta.months || { m3: 'Август', m2: 'Сентябрь', cur: 'Октябрь', next: 'Ноябрь' };
+  const months = meta.months || { m3: 'Сентябрь', m2: 'Октябрь', cur: 'Ноябрь', next: 'Декабрь' };
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText('forecast-heading', `Прогноз лидов SEO на ${months.next.toLowerCase()}`);
+  setText('forecast-eyebrow', `${months.next} ${meta.targetMonth?.slice(0, 4) || '2026'} · три сценария`);
+  setText('forecast-projects-title', `Шесть проектов: итог ${fcGen(months.cur)} и прогноз ${fcGen(months.next)}`);
+  setText('forecast-method-note', `Досчёт ${fcGen(months.cur)} и три прогноза ${fcGen(months.next)}; каждый сценарий сверяем с фактом отдельно.`);
+  if (meta.status === 'awaiting-november') {
+    $('#forecast-kpis').textContent = meta.message;
+    $('#forecast-projects-note').textContent = meta.message;
+    $('#forecast-directions-note').textContent = 'Прогноз появится после обновления ноябрьского факта.';
+    $('#forecast-projects').innerHTML = '';
+    $('#forecast-directions').innerHTML = '';
+    $('#forecast-method-list').innerHTML = '';
+    return;
+  }
   for (const headId of ['forecast-projects-head', 'forecast-directions-head']) {
     const head = document.getElementById(headId);
     if (!head) continue;
@@ -682,15 +702,15 @@ function renderForecast() {
   }
   $('#forecast-kpis').innerHTML = [
     `<span class="mini-kpi">Итог ${fcGen(months.cur)}, 6 проектов <b>${formatInt(fc.total.curEom)}</b></span>`,
-    `<span class="mini-kpi">Досчёт ${formatDate(meta.curRemainFrom)}–${formatDate(meta.curRemainTo)} · ставка недели ${formatDate(meta.curWindow[0])}–${formatDate(meta.curWindow[1])} <b>+${formatInt(fc.total.curRemaining)}</b></span>`,
+    `<span class="mini-kpi">${meta.curRemainingDays ? `Досчёт ${formatDate(meta.curRemainFrom)}–${formatDate(meta.curRemainTo)}` : `${months.cur}: месяц закрыт`} · ставка недели ${formatDate(meta.curWindow[0])}–${formatDate(meta.curWindow[1])} <b>+${formatInt(fc.total.curRemaining)}</b></span>`,
     `<span class="mini-kpi">${months.next} · сценарий «тренд» <b>${formatInt(fc.total.nextTrend)}</b></span>`,
     `<span class="mini-kpi">${months.next} · сценарий «сезонность» <b>${formatInt(fc.total.nextSeasonal)}</b></span>`,
     ...(fc.projects.find((p) => p.id === 'core')?.nextDemand != null
       ? [`<span class="mini-kpi">${months.next} · сценарий «спрос», только core <b>${formatInt(fc.projects.find((p) => p.id === 'core').nextDemand)}</b></span>`]
       : []),
   ].join('');
-  $('#forecast-projects-note').textContent = `Факт по ${formatDate(meta.asOf)}; итог ${fcGen(months.cur)} = факт + ставка последних 7 дней × ${meta.curRemainingDays} дн. (${nf.format(meta.curTailFactor)} «средних» дня с учётом дней недели); ${months.next.toLowerCase()} — ${meta.nextDays} календарных дней ≈ ${nf.format(meta.nextFactor)} «средних». Спрос-сценарий — только для core (файл спроса покрывает направления core); в таблице направлений — ${meta.demand.mappedDirections} строк из 13.`;
-  $('#forecast-directions-note').textContent = `Тринадцать направлений горячей воронки core (сумма = Skillbox core) · факт по ${formatDate(meta.asOf)}.`;
+  $('#forecast-projects-note').textContent = (meta.partialMonthNote ? `${meta.partialMonthNote} ` : '') + `Факт по ${formatDate(meta.asOf)}; итог ${fcGen(months.cur)} = факт + ставка последних 7 дней × ${meta.curRemainingDays} дн. (${nf.format(meta.curTailFactor)} «средних» дня с учётом дней недели); ${months.next.toLowerCase()} — ${meta.nextDays} ${meta.nextDays === 31 ? 'календарный день' : 'календарных дней'} ≈ ${nf.format(meta.nextFactor)} «средних». Спрос-сценарий — только для core (файл спроса покрывает направления core); в таблице направлений — ${meta.demand.mappedDirections} строк из ${fc.directions.length}.` + (meta.dashboardAsOf && meta.dashboardAsOf !== meta.asOf ? ` Для прогноза отдельно обновили факт Power BI; основной срез остальных вкладок — ${formatDate(meta.dashboardAsOf)}.` : '');
+  $('#forecast-directions-note').textContent = `${fc.directions.length} направлений горячей воронки core · факт по ${formatDate(meta.asOf)}. Сумма факта = Skillbox core; суммы прогнозов могут отличаться: каждую строку считаем отдельно.`;
   $('#forecast-projects').innerHTML = fc.projects.map((row) => forecastRow(row, false)).join('') + forecastRow(fc.total, true);
   $('#forecast-directions').innerHTML = fc.directions.map((row) => forecastRow(row, false)).join('') + forecastRow(fc.directionsTotal, true);
   const list = $('#forecast-method-list');

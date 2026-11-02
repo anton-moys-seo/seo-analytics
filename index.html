@@ -9,7 +9,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=20261002-5">
   <link rel="stylesheet" href="updates-all.css?v=20261009-1">
-  <link rel="stylesheet" href="products-sf-cd.css?v=20261028-1">
+  <link rel="stylesheet" href="products-sf-cd.css?v=20261102-3">
   <link rel="stylesheet" href="ux-shell.css?v=20261030-2">
 </head>
 <body>
@@ -35,7 +35,7 @@
 
     <nav class="section-tabs" aria-label="Разделы отчёта">
       <button class="tab-button active" data-target="leads" type="button">Лиды</button>
-      <button class="tab-button" data-target="forecast" type="button">Прогноз: ноябрь</button>
+      <button class="tab-button" data-target="forecast" type="button">Прогноз: декабрь</button>
       <button class="tab-button" data-target="media" type="button">Медиатрафик</button>
       <button class="tab-button" data-target="experiment" type="button">Эксперимент: вайбкодинг</button>
     </nav>
@@ -53,7 +53,6 @@
       </nav>
       <nav id="media-results-navigation" class="nested-tabs results-tabs" aria-label="Результаты медиатрафика" hidden>
         <button class="nested-tab" data-target="recovery" type="button">Мониторинг метатегов</button>
-        <button class="nested-tab" data-target="updates" type="button">Апдейты</button>
       </nav>
     </div>
 
@@ -190,8 +189,8 @@
     <section id="forecast" class="dashboard-section" aria-labelledby="forecast-heading">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Ноябрь 2026 · три сценария</p>
-          <h2 id="forecast-heading">Прогноз лидов SEO на ноябрь</h2>
+          <p class="eyebrow" id="forecast-eyebrow">Декабрь 2026 · три сценария</p>
+          <h2 id="forecast-heading">Прогноз лидов SEO на декабрь</h2>
         </div>
       </div>
 
@@ -200,13 +199,13 @@
       <article class="table-card">
         <div class="card-heading">
           <div>
-            <h3>Шесть проектов: итог октября и прогноз ноября</h3>
+            <h3 id="forecast-projects-title">Шесть проектов: итог ноября и прогноз декабря</h3>
             <p id="forecast-projects-note">Факт — по дате среза; досчёт — ставка последних 7 дней на остаток месяца.</p>
           </div>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr id="forecast-projects-head"><th>Проект</th><th>Август</th><th>Сентябрь</th><th>Октябрь: факт</th><th>Досчёт</th><th>Итог октября</th><th>Тренд окт/сен</th><th>Ноябрь: тренд</th><th>Ноябрь: сезонность</th><th>Ноябрь: спрос</th><th>Сезонный коэф.</th></tr></thead>
+            <thead><tr id="forecast-projects-head"><th>Проект</th><th>Сентябрь</th><th>Октябрь</th><th>Ноябрь: факт</th><th>Досчёт</th><th>Итог ноября</th><th>Тренд ноя/окт</th><th>Декабрь: тренд</th><th>Декабрь: сезонность</th><th>Декабрь: спрос</th><th>Сезонный коэф.</th></tr></thead>
             <tbody id="forecast-projects"></tbody>
           </table>
         </div>
@@ -221,7 +220,7 @@
         </div>
         <div class="table-wrap direction-summary-wrap">
           <table>
-            <thead><tr id="forecast-directions-head"><th>Направление</th><th>Август</th><th>Сентябрь</th><th>Октябрь: факт</th><th>Досчёт</th><th>Итог октября</th><th>Тренд окт/сен</th><th>Ноябрь: тренд</th><th>Ноябрь: сезонность</th><th>Ноябрь: спрос</th><th>Сезонный коэф.</th></tr></thead>
+            <thead><tr id="forecast-directions-head"><th>Направление</th><th>Сентябрь</th><th>Октябрь</th><th>Ноябрь: факт</th><th>Досчёт</th><th>Итог ноября</th><th>Тренд ноя/окт</th><th>Декабрь: тренд</th><th>Декабрь: сезонность</th><th>Декабрь: спрос</th><th>Сезонный коэф.</th></tr></thead>
             <tbody id="forecast-directions"></tbody>
           </table>
         </div>
@@ -231,7 +230,7 @@
         <div class="card-heading">
           <div>
             <h3>Методология</h3>
-            <p>Как считаны досчёт октября и все прогнозы ноября; сценарии не смешиваются — после факта ноября их нужно откалибровать.</p>
+            <p id="forecast-method-note">Досчёт ноября и три прогноза декабря; каждый сценарий сверяем с фактом отдельно.</p>
           </div>
         </div>
         <ol id="forecast-method-list" class="forecast-method-list"></ol>
@@ -643,14 +642,14 @@
     <span>Skillbox Analytics</span>
     <span>Power BI · Яндекс Метрика</span>
   </footer>
-  <script src="ux-shell.js?v=20261030-2" defer></script>
+  <script src="ux-shell.js?v=20261102-1" defer></script>
   <script src="recovery.js?v=20261002-2" defer></script>
   <script src="experiment.js?v=20261002-2" defer></script>
   <script src="xlsx-export.js?v=20261002-1" defer></script>
   <script src="updates.js?v=20261002-9" defer></script>
   <script src="updates-all.js?v=20261009-1" defer></script>
-  <script src="products_model.js?v=20261028-1" defer></script>
-  <script src="products-sf-cd.js?v=20261028-1" defer></script>
-  <script src="app.js?v=20261030-1" defer></script>
+  <script src="products_model.js?v=20261102-2" defer></script>
+  <script src="products-sf-cd.js?v=20261102-4" defer></script>
+  <script src="app.js?v=20261102-3" defer></script>
 </body>
 </html>

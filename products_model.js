@@ -206,5 +206,36 @@
     const expected = selected.pages.length * selected.indices.length;
     return {value: interval.values[metric], observed, expected, nativePeriod: true};
   }
-  return { validate, bucket, selection, search, bi, biInterval };
+  // Compare equal halves of the selected interval; an odd middle day is omitted.
+  // Never mix engines or classify incomplete/preliminary observations as a trend.
+  function trend(data, options = {}) {
+    const selected = selection(data, options), n = Math.floor(selected.indices.length / 2);
+    if (!n) return { state: 'insufficient', engines: [], windows: null };
+    const before = selected.indices.slice(0, n), after = selected.indices.slice(-n);
+    const windows = { before: {from: data.dates[before[0]], to: data.dates[before[n - 1]]},
+      after: {from: data.dates[after[0]], to: data.dates[after[n - 1]]}, days: n };
+    const sources = options.engine === 'all' || !options.engine ? ['gsc', 'webmaster'] : [options.engine];
+    const engines = sources.map((engine) => {
+      const read = (window, metric) => search(data, {...options, ...window, engine, metric, grain: 'month'}).points;
+      const aggregate = (window) => {
+        const clicks = read(window, 'clicks'), position = read(window, 'position');
+        const complete = clicks.length > 0 && [...clicks, ...position].every((p) => p.coverage.complete && !p.coverage.provisional);
+        const weight = position.reduce((s, p) => s + p.coverage.weightedImpressions, 0);
+        return { complete: complete && weight > 0,
+          clicks: clicks.reduce((s, p) => s + (p.value || 0), 0),
+          position: weight ? position.reduce((s, p) => s + (p.value || 0) * p.coverage.weightedImpressions, 0) / weight : null };
+      };
+      const first = aggregate(windows.before), last = aggregate(windows.after);
+      let state = 'insufficient';
+      if (first.complete && last.complete) {
+        const dc = last.clicks - first.clicks, dp = last.position - first.position;
+        state = dc > 0 && dp < -1e-9 ? 'up' : dc < 0 && dp > 1e-9 ? 'down' : 'neutral';
+      }
+      return {engine, state, before: first, after: last};
+    });
+    const state = engines.every((r) => r.state === 'up') ? 'up' : engines.every((r) => r.state === 'down') ? 'down' :
+      engines.some((r) => r.state === 'insufficient') ? 'insufficient' : 'neutral';
+    return { state, engines, windows };
+  }
+  return { validate, bucket, selection, search, bi, biInterval, trend };
 });
