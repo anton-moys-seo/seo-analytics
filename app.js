@@ -512,10 +512,48 @@ function renderLead() {
   if (legendPlan) legendPlan.hidden = Boolean(group);
   document.querySelectorAll('[data-gap-legend="lead"]').forEach((item) => { item.hidden = Boolean(group); });
   renderLineChart($('#lead-chart'), chart.dates, chart.series, { width: window.innerWidth < 640 ? 360 : 1200, gap: !group });
+  renderLeadPages(entity, idx);
   if (blogGroupOf(entity) && state.blog === undefined) {
     ensureBlogData().then(() => { if (state.leadId === entity.id && state.view === 'leads') renderLeadBlog(entity); });
   }
   renderLeadBlog(entity);
+}
+
+// Доли лидов по типам страниц: только Skillfactory и Contented. Типы — официальный
+// справочник модели (dim_urls-all[Тип страницы]); план по страницам не детализирован.
+// Месяц считается по дням, попавшим в выбранный период: неполный месяц явно неполный.
+function renderLeadPages(entity, periodIndexes) {
+  const block = $('#lead-pages-block');
+  if (!block) return;
+  const supported = ['sf', 'cd'].includes(entity.id) && Array.isArray(entity.pageGroups) && entity.pageGroups.length > 0;
+  block.hidden = !supported;
+  if (!supported) return;
+  const months = [], byMonth = new Map();
+  for (const i of periodIndexes) {
+    const month = entity.dates[i].slice(0, 7);
+    if (!byMonth.has(month)) { byMonth.set(month, []); months.push(month); }
+    byMonth.get(month).push(i);
+  }
+  $('#lead-pages-thead').innerHTML = '<tr><th scope="col">Тип страниц</th>'
+    + months.map((month) => `<th scope="col">${monthNames[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}</th>`).join('')
+    + '<th scope="col">За период</th></tr>';
+  const cell = (part, total) => total > 0
+    ? `<b>${pctf.format(part / total)}</b><span class="lead-pages-abs">${formatInt(part)} лид.</span>`
+    : '<b>—</b>';
+  const totals = months.map((month) => sum(byMonth.get(month).map((i) => entity.fact[i])));
+  const periodTotal = sum(periodIndexes.map((i) => entity.fact[i]));
+  const rows = entity.pageGroups.map((group) => {
+    const parts = months.map((month) => sum(byMonth.get(month).map((i) => group.fact[i])));
+    const period = sum(periodIndexes.map((i) => group.fact[i]));
+    const cells = months.map((month, j) => `<td>${cell(parts[j], totals[j])}</td>`).join('');
+    const active = state.leadPage === group.id ? ' class="lead-pages-active"' : '';
+    return `<tr${active}><td>${group.name}</td>${cells}<td>${cell(period, periodTotal)}</td></tr>`;
+  });
+  rows.push(`<tr class="lead-pages-total"><td>Все страницы</td>`
+    + months.map((month, j) => `<td>${cell(totals[j], totals[j])}</td>`).join('')
+    + `<td>${cell(periodTotal, periodTotal)}</td></tr>`);
+  $('#lead-pages-tbody').innerHTML = rows.join('');
+  $('#lead-pages-note').textContent = `Доля типа страниц в лидах проекта за дни месяца, попавшие в выбранный период (${formatPeriod(state.leadFrom, state.leadTo)}); в ячейке — доля и число лидов. Факт — по справочнику типов страниц модели; план по страницам не детализирован.`;
 }
 
 function blogGroupOf(entity) {

@@ -124,3 +124,13 @@ footer{max-width:1440px;margin:0 auto;padding:32px;display:flex;justify-content:
 #upd-xlsx:disabled{cursor:not-allowed;opacity:.5}
 @media(max-width:640px){#media-navigation{margin-top:calc(-1 * var(--space-4))}.nested-tabs{gap:var(--space-3)}.updates-status{padding:var(--space-6)}#updates .kpi-value{font-size:28px}}
 
+#lead-pages-block{margin-top:32px}
+#lead-pages-block .card-sub-heading h4{font-size:20px;line-height:1.2;font-weight:600;letter-spacing:-.02em;margin:0 0 4px}
+#lead-pages-block .card-sub-heading p{margin:0 0 16px;font-size:13px;line-height:1.5}
+.lead-pages-wrap td{white-space:nowrap;vertical-align:top}
+.lead-pages-wrap td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.lead-pages-wrap th:not(:first-child){text-align:right}
+.lead-pages-abs{display:block;font-size:12px;font-weight:400;margin-top:2px}
+tr.lead-pages-total td{background:#EBEBEB}
+tr.lead-pages-active td{background:#E7E7FF}
+@media (max-width:640px){.lead-pages-wrap td{white-space:normal}}

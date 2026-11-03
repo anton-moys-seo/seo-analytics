@@ -6,7 +6,7 @@
   const COLORS = { gsc: '#3D3BFF', webmaster: '#000000', bi: '#3D3BFF', sf: '#3D3BFF', cd: '#000000' };
   const fmt = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
   const pos = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
-  let data = null, pending = null, refs = null;
+  let data = null, pending = null, refs = null, focusPageId = null;
   const el = (tag, text, className) => { const node = document.createElement(tag); if (text != null) node.textContent = text; if (className) node.className = className; return node; };
   const precise = new Intl.NumberFormat('ru-RU', { maximumSignificantDigits: 3 });
   const scientific = new Intl.NumberFormat('ru-RU', { maximumSignificantDigits: 3, notation: 'scientific' });
@@ -57,12 +57,12 @@
           <label>Дата с<input id="ps-from" type="date"></label><label>Дата по<input id="ps-to" type="date"></label>
         </div><p id="ps-error" class="ps-error" role="alert" hidden></p><p id="ps-source-note" class="ps-note"></p></article>
       <div id="ps-kpis" class="ps-kpis" aria-live="polite"></div>
-      <article id="ps-chart-card" class="chart-card ps-chart-card"><div class="card-heading chart-heading-safe"><div><h3 id="ps-chart-title">Динамика</h3><p id="ps-chart-note"></p></div><div id="ps-legend" class="ps-legend" role="group" aria-label="Источники графика"></div></div>
+      <article id="ps-chart-card" class="chart-card ps-chart-card"><div class="card-heading chart-heading-safe"><div><h3 id="ps-chart-title">Динамика</h3><p id="ps-chart-note"></p></div><div id="ps-legend" class="ps-legend" role="group" aria-label="Источники графика"></div><button id="ps-focus-clear" class="ps-focus-clear" type="button" hidden>Показать все страницы</button></div>
         <div id="ps-chart" class="chart ps-chart" role="group" aria-label="Динамика выбранного показателя"></div><p id="ps-chart-status" class="ps-sr-only" role="status" aria-live="polite" aria-atomic="true"></p><p id="ps-chart-empty" class="ps-note" hidden></p>
         <details id="ps-series-details" class="ps-series"><summary>Показать данные графика</summary><div class="table-wrap ps-series-wrap"><table><thead><tr><th scope="col">Период</th><th scope="col">Источник</th><th scope="col">Значение</th><th scope="col">Покрытие</th></tr></thead><tbody id="ps-series-body"></tbody></table></div></details></article>
       <article id="ps-table-card" class="table-card ps-table-card"><div class="card-heading ps-table-heading"><div><h3>Страницы</h3><p>Итоги за выбранный период и покрытие данных</p></div><label class="ps-search-label">Поиск по названию или URL<input id="ps-search" type="search" placeholder="Название или адрес"></label></div>
-        <p id="ps-trend-note" class="ps-note ps-trend-note"></p><p class="ps-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть все столбцы.</p><div class="table-wrap ps-table-wrap"><table><thead id="ps-thead"></thead><tbody id="ps-tbody"></tbody></table></div><p id="ps-table-empty" class="ps-note" hidden></p></article>`;
-    refs = Object.fromEntries(['notice','school','page','engine','engine-hint','metric','grain','from','to','error','source-note','kpis','chart-card','chart-title','chart-note','legend','chart','chart-status','chart-empty','series-details','series-body','table-card','trend-note','search','thead','tbody','table-empty'].map((id) => [id, section.querySelector('#ps-' + id)]));
+        <p id="ps-trend-note" class="ps-note ps-trend-note"></p><p class="ps-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть все столбцы.</p><p class="ps-focus-hint">Нажмите на строку — график покажет динамику именно этой страницы. Повторный клик по строке или кнопка «Показать все страницы» вернут динамику всей группы.</p><div class="table-wrap ps-table-wrap"><table><thead id="ps-thead"></thead><tbody id="ps-tbody"></tbody></table></div><p id="ps-table-empty" class="ps-note" hidden></p></article>`;
+    refs = Object.fromEntries(['notice','school','page','engine','engine-hint','metric','grain','from','to','error','source-note','kpis','chart-card','chart-title','chart-note','legend','focus-clear','chart','chart-status','chart-empty','series-details','series-body','table-card','trend-note','search','thead','tbody','table-empty'].map((id) => [id, section.querySelector('#ps-' + id)]));
   }
   function restore() {
     const params = new URLSearchParams(location.search);
@@ -74,6 +74,8 @@
     refs.from.min = refs.to.min = first; refs.from.max = refs.to.max = last;
     refs.from.value = /^\d{4}-\d{2}-\d{2}$/.test(params.get('ps_from') || '') && params.get('ps_from') >= first && params.get('ps_from') <= last ? params.get('ps_from') : first;
     refs.to.value = /^\d{4}-\d{2}-\d{2}$/.test(params.get('ps_to') || '') && params.get('ps_to') >= first && params.get('ps_to') <= last ? params.get('ps_to') : last;
+    const focusParam = params.get('ps_focus');
+    focusPageId = focusParam && focusParam !== 'all' && data.pages.some((p) => p.id === focusParam) ? focusParam : null;
     fillPages(params.get('ps_page') || 'all');
   }
   function fillPages(preferred) {
@@ -86,6 +88,13 @@
     refs.page.value = [...refs.page.options].some((o) => o.value === current) ? current : 'all';
   }
   function settings() { return { school: refs.school.value, pageId: refs.page.value, engine: refs.engine.value, grain: refs.grain.value, from: refs.from.value, to: refs.to.value }; }
+  // Выбранная в таблице страница для графика: живёт только внутри текущих фильтров группы.
+  function focusTarget(selected) {
+    if (!focusPageId || focusPageId === selected.pageId) return null;
+    const page = data.pages.find((p) => p.id === focusPageId);
+    return page && (selected.school === 'all' || page.school === selected.school) ? page : null;
+  }
+  function setFocus(pageId) { focusPageId = pageId; render(); }
   function describeSources() {
     const g = data.meta.sources?.gsc || {}, y = data.meta.sources?.webmaster || {};
     const googleState = g.dataState === 'final' ? 'финальные данные' : g.dataState === 'provisional' ? 'предварительные данные' : 'статус данных уточняется';
@@ -244,9 +253,10 @@
     refs['trend-note'].textContent = windows ? `Динамика поиска: ${dateLabel(windows.before.from)}–${dateLabel(windows.before.to)} → ${dateLabel(windows.after.from)}–${dateLabel(windows.after.to)} (по ${windows.days} дн.). Поисковики: ${trendSources}. Сравниваем равные половины выбранного периода; при нечётном числе дней середина исключена. Зелёный — кликов больше и позиция лучше (число меньше); розовый — кликов меньше и позиция хуже (число больше). Позицию взвешиваем по показам. Окрашиваем только при полном покрытии обоих окон; при двух системах обе должны подтвердить направление. Пропуски, предварительные данные, разнонаправленные и неизменившиеся показатели — без подсветки.${isBi ? ' Здесь сравниваем Google и Яндекс, независимо от выбранной меры Power BI.' : ''}` : `Поисковики: ${trendSources}. Для сравнения динамики поиска выберите не менее двух дней.`;
     const q = refs.search.value.trim().toLocaleLowerCase('ru');
     const pages = data.pages.filter((p) => (selected.school === 'all' || p.school === selected.school) && (selected.pageId === 'all' || p.id === selected.pageId) && (!q || `${p.name} ${p.url}`.toLocaleLowerCase('ru').includes(q)));
+    const focusId = focusTarget(selected)?.id || null;
     for (const p of pages) {
       const tr = el('tr'), title = el('td'), safe = urlSafe(p.url);
-      if (safe) { const link = el('a', p.name); link.href = safe; link.target = '_blank'; link.rel = 'noopener noreferrer'; title.append(link); }
+      if (safe) { const link = el('a', p.name); link.href = safe; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.addEventListener('click', (event) => event.stopPropagation()); title.append(link); }
       else title.append(el('span', p.name));
       title.append(el('div', p.url, 'ps-page-url'));
       if (p.pageType === 'hybrid') title.append(el('span', 'Гибридная страница', 'ps-badge'));
@@ -268,7 +278,13 @@
       for (const source of trend.engines) {
         status.append(el('div', `${SOURCES[source.engine]}: ${source.state === 'insufficient' ? 'недостаточно полных данных' : `клики ${value(source.before.clicks, 'clicks')} → ${value(source.after.clicks, 'clicks')}; позиция ${value(source.before.position, 'position')} → ${value(source.after.position, 'position')}`}`));
       }
-      tr.append(status); refs.tbody.append(tr);
+      tr.append(status);
+      tr.dataset.pageId = p.id; tr.tabIndex = 0;
+      if (p.id === focusId) tr.classList.add('ps-row-active');
+      const toggle = () => setFocus(p.id === focusId ? null : p.id);
+      tr.addEventListener('click', toggle);
+      tr.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } });
+      refs.tbody.append(tr);
     }
     refs['table-empty'].hidden = pages.length > 0; refs['table-empty'].textContent = pages.length ? '' : 'Страницы не найдены.';
   }
@@ -283,6 +299,9 @@
     refs.kpis.hidden = refs['chart-card'].hidden = refs['table-card'].hidden = false;
     const selected = settings(), rawMetric = refs.metric.value, isBi = rawMetric.startsWith('bi:'), metric = isBi ? rawMetric.slice(3) : rawMetric;
     const spec = isBi ? data.meta.biMetrics?.[metric] : null;
+    const focus = focusTarget(selected);
+    if (focusPageId && !focus) focusPageId = null;
+    refs['focus-clear'].hidden = !focus;
     refs.engine.disabled = isBi;
     refs['engine-hint'].hidden = false;
     refs['engine-hint'].textContent = isBi ? 'Для Power BI фильтр не применяется' : 'По умолчанию Google: у Яндекса ограничена история. В режиме двух систем нужны полные данные обеих; при неполном покрытии выберите Google.';
@@ -317,7 +336,13 @@
       for (const engine of engines) { const total = totals(day.points.filter((p) => p.engine === engine), metric); refs.kpis.append(kpi(SOURCES[engine], value(total.value, metric), coverage(total, metric === 'position'), false)); }
       refs['chart-note'].textContent = metric === 'position' ? 'Позиция взвешена по показам; меньшее значение означает более высокое место.' : 'Показатели источников не объединяются; пропуски остаются пропусками.';
     }
-    refs['chart-title'].textContent = `Динамика: ${refs.metric.selectedOptions[0].textContent}`;
+    // Выбранная в таблице страница перестраивает график, не трогая KPI и фильтры группы.
+    if (focus) points = isBi ? M.bi(data, {...selected, pageId: focus.id, metric}).points
+                             : M.search(data, {...selected, pageId: focus.id, metric}).points;
+    const metricLabel = refs.metric.selectedOptions[0].textContent;
+    refs['chart-title'].textContent = focus ? `Динамика: ${metricLabel} · ${focus.name}` : `Динамика: ${metricLabel}`;
+    if (focus) refs['chart-note'].textContent = `Страница: ${focus.url}. Показана одна страница из выбранной группы; кнопка «Показать все страницы» вернёт динамику группы. `
+      + refs['chart-note'].textContent;
     refs.chart.setAttribute('aria-label', refs['chart-title'].textContent);
     paintChart(points, metric, isBi); buildTable(selected, isBi, metric, spec);
     window.updateProductsSfCdUrl();
@@ -325,6 +350,7 @@
   window.updateProductsSfCdUrl = function () {
     const params = new URLSearchParams(location.search); params.set('view', 'products-sf-cd');
     if (refs) for (const key of ['school', 'page', 'engine', 'metric', 'grain', 'from', 'to']) params.set('ps_' + key, refs[key].value);
+    if (focusPageId) params.set('ps_focus', focusPageId); else params.delete('ps_focus');
     history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
   };
   window.ensureProductsSfCd = function () {
@@ -342,6 +368,7 @@
       Object.entries(data.meta.biMetrics || {}).forEach(([key, spec]) => option(refs.metric, 'bi:' + key, spec.label + (spec.available === false ? ' · нет данных' : '')));
       restore(); describeSources();
       ['school', 'page', 'engine', 'metric', 'grain', 'from', 'to'].forEach((key) => refs[key].addEventListener('change', () => { if (key === 'school') fillPages(); render(); }));
+      refs['focus-clear'].addEventListener('click', () => setFocus(null));
       refs.search.addEventListener('input', render);
       let resizeFrame;
       window.addEventListener('resize', () => {
