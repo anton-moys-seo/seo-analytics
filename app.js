@@ -426,7 +426,7 @@ function renderLeadAttention(items, period) {
   const noPlan = items.length - planned.length;
   box.hidden = !items.length;
   box.innerHTML = `<div class="attention-head"><p class="attention-title">${!planned.length ? 'План на период не задан' : lagging.length ? 'Требует внимания' : 'Все проекты с планом в плане'}</p>`
-    + `<p class="attention-note">Сводка за ${period}: ${planned.length ? `план выполняют ${onTrack} из ${planned.length}${noPlan ? ` · без полного плана: ${noPlan}` : ''}. Нажмите на проект, чтобы открыть его график.` : 'нет проектов с доступным планом на весь период.'}</p></div>`
+    + `<p class="attention-note">Сводка за ${period}: ${planned.length ? `план выполняют ${onTrack} из ${planned.length}${noPlan ? ` · без полного плана: ${noPlan}` : ''}. Нажмите на проект, чтобы открыть его график.` : `нет плановых данных по ${items.length} ${items.length === 1 ? 'проекту' : 'проектам'}.`}</p></div>`
     + (lagging.length ? `<div class="attention-list">${lagging.map((item) => `<button type="button" class="attention-chip exec-${executionTier(item.execution)}" data-lead="${item.id}"><span>${item.name}</span><b>${pctf.format(item.execution)}</b></button>`).join('')}</div>` : '');
 }
 
@@ -684,6 +684,18 @@ function renderForecast() {
   setText('forecast-eyebrow', `${months.next} ${meta.targetMonth?.slice(0, 4) || '2026'} · три сценария`);
   setText('forecast-projects-title', `Шесть проектов: итог ${fcGen(months.cur)} и прогноз ${fcGen(months.next)}`);
   setText('forecast-method-note', `Досчёт ${fcGen(months.cur)} и три прогноза ${fcGen(months.next)}; каждый сценарий сверяем с фактом отдельно.`);
+  const factDays = Number(meta.currentFactDays ?? meta.asOf?.slice(8, 10));
+  const veryEarly = meta.status !== 'awaiting-november' && meta.asOf?.slice(0, 7) === (meta.currentMonth || '2026-11') && factDays > 0 && factDays < 7;
+  const warning = document.getElementById('forecast-warning');
+  if (warning) {
+    warning.hidden = !veryEarly;
+    if (veryEarly) {
+      const factCoverage = factDays === 1 ? 'Доступен только 1 день' : `Доступно только ${factDays} ${factDays < 5 ? 'дня' : 'дней'}`;
+      setText('forecast-warning-text', `${factCoverage} факта ${fcGen(months.cur)} из ${meta.curDays || 30} дней. Прогноз ${fcGen(months.next)} предварительный, с высокой неопределённостью. Окно ставки последних 7 дней — ${formatDate(meta.curWindow[0])}–${formatDate(meta.curWindow[1])}.`);
+    } else {
+      setText('forecast-warning-text', '');
+    }
+  }
   if (meta.status === 'awaiting-november') {
     $('#forecast-kpis').textContent = meta.message;
     $('#forecast-projects-note').textContent = meta.message;
