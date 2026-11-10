@@ -3,6 +3,7 @@ const state = {
   leadId: 'core', leadGranularity: 'day', leadFrom: null, leadTo: null, leadPage: 'all',
   direction: null, directionGranularity: 'day', directionFrom: null, directionTo: null,
   mediaId: 'skillbox-media', mediaSection: 'Все /media/', mediaGranularity: 'day', mediaFrom: null, mediaTo: null,
+  planPeriod: null, planView: 'cum',
   blog: undefined, // undefined — ещё не запрашивался; null — недоступен; object — blog.json
   yoy: undefined, // undefined — ещё не запрашивался; null — недоступен; object — yoy.json
   forecast: undefined, // undefined — ещё не запрашивался; null — недоступен; object — forecast.json
@@ -218,6 +219,21 @@ function renderLineChart(container, dates, series, options = {}) {
     }
     if (above) svg += `<path class="gap-above" d="${above.trim()}"></path>`;
     if (below) svg += `<path class="gap-below" d="${below.trim()}"></path>`;
+  } else if (options.band) {
+    // Коридор плана (база … благоприятный): заливка между двумя рядами там, где известны оба значения.
+    const { lower, upper } = options.band;
+    let area = '', top = [], bottom = [];
+    const flush = () => {
+      if (top.length > 1) area += `M${top.map(([a, b]) => `${a.toFixed(2)},${b.toFixed(2)}`).join(' L')} L${bottom.reverse().map(([a, b]) => `${a.toFixed(2)},${b.toFixed(2)}`).join(' L')} Z `;
+      top = []; bottom = [];
+    };
+    dates.forEach((_, i) => {
+      const lo = lower[i], hi = upper[i];
+      if (lo === null || lo === undefined || hi === null || hi === undefined) { flush(); return; }
+      top.push([x(i), y(hi)]); bottom.push([x(i), y(lo)]);
+    });
+    flush();
+    if (area) svg += `<path class="plan-band" d="${area.trim()}"></path>`;
   } else {
     // Мягкая заливка под основным рядом.
     const primary = series.find((item) => item.className.includes('line-primary'));
@@ -274,7 +290,7 @@ function renderLineChart(container, dates, series, options = {}) {
 
   svg += `<line class="hover-line" id="${container.id}-hover" x1="0" y1="${margin.top}" x2="0" y2="${margin.top+innerH}" visibility="hidden"></line>`;
   series.forEach((item, seriesIndex) => {
-    svg += `<circle id="${container.id}-point-${seriesIndex}" class="${item.className.includes('primary') ? 'point-primary' : 'point-black'}" r="5" cx="0" cy="0" visibility="hidden"></circle>`;
+    svg += `<circle id="${container.id}-point-${seriesIndex}" class="${item.pointClass || (item.className.includes('primary') ? 'point-primary' : 'point-black')}" r="5" cx="0" cy="0" visibility="hidden"></circle>`;
   });
   svg += `<rect class="hit-area" x="${margin.left}" y="${margin.top}" width="${innerW}" height="${innerH}"></rect></svg>`;
   container.innerHTML = svg;
@@ -299,8 +315,11 @@ function renderLineChart(container, dates, series, options = {}) {
       } else {
         point.setAttribute('cx', xx); point.setAttribute('cy', y(value)); point.setAttribute('visibility', 'visible');
       }
-      content += `<br><i class="${swatch}"></i>${esc(item.name)}: <b>${value === null || value === undefined ? '—' : formatNumber(value)}</b>`;
+      if (item.hideNull && (value === null || value === undefined)) return;
+      const swatchClass = item.swatch ? `tt-dot ${item.swatch}` : swatch;
+      content += `<br><i class="${swatchClass}"></i>${esc(item.name)}: <b>${value === null || value === undefined ? '—' : formatNumber(value)}</b>`;
     });
+    if (options.tooltipExtra) content += options.tooltipExtra(index) || '';
     if (planSeries && factSeries) {
       const pv = planSeries.values[index], fv = factSeries.values[index];
       if (pv !== null && pv !== undefined && fv !== null && fv !== undefined) {
@@ -776,6 +795,16 @@ function currentMediaSeries() {
   return { project, label: project.id === 'skillbox-media' ? 'Все /media/' : project.name, seo: project.seo, direct: project.direct };
 }
 
+// Ячейка «SEO к плану»: факт к базе за пересечение строки с выбранным периодом и плановыми днями.
+function mediaPlanCell(sectionName, dates, seoValues, rowFrom, rowTo, start, end) {
+  if (state.mediaId !== 'skillbox-media' || !window.MediaPlan || !MediaPlan.ready()) return '<span class="plan-sub">—</span>';
+  if (!MediaPlan.has(sectionName)) return '<span class="plan-sub">нет плана</span>';
+  const from = rowFrom > start ? rowFrom : start, to = rowTo < end ? rowTo : end;
+  const cmp = MediaPlan.compare(sectionName, dates, seoValues, from, to);
+  if (!cmp) return '<span class="plan-sub">—</span>';
+  return `<span class="plan-badge ${cmp.status.cls}" title="${cmp.status.label}: факт ${formatInt(cmp.fact)}, база ${formatInt(cmp.base)}, благоприятный ${formatInt(cmp.fav)} (${formatPeriod(cmp.from, cmp.to)})">${MediaPlan.signedPct(cmp.toBase)}</span>`;
+}
+
 function renderMediaMonthly(dates, seoValues, directValues, start, end) {
   const body = $('#media-monthly'); body.innerHTML = '';
   const groups = new Map();
@@ -792,6 +821,9 @@ function renderMediaMonthly(dates, seoValues, directValues, start, end) {
     [monthNames[month - 1], formatInt(values.seo), formatInt(values.direct), total ? pctf.format(values.seo / total) : '—'].forEach((value) => {
       const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
     });
+    const planCell = document.createElement('td');
+    planCell.innerHTML = mediaPlanCell(state.mediaSection, dates, seoValues, `${key}-01`, `${key}-31`, start, end);
+    row.appendChild(planCell);
     body.appendChild(row);
   });
   $('#media-monthly-note').textContent = `Период ${formatPeriod(start, end)}.`;
@@ -803,7 +835,7 @@ function renderEditorialSummary(project, start, end) {
   card.hidden = false;
   const idx = rangeIndexes(project.dates, start, end);
   const ranked = project.sections.map((section) => ({
-    name: section.name,
+    name: section.name, seoSeries: section.seo,
     seo: sum(idx.map((i) => section.seo[i])),
     direct: sum(idx.map((i) => section.direct[i])),
   })).sort((a, b) => (b.seo + b.direct) - (a.seo + a.direct));
@@ -813,9 +845,12 @@ function renderEditorialSummary(project, start, end) {
     [section.name, formatInt(section.seo), formatInt(section.direct)].forEach((value) => {
       const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
     });
+    const planCell = document.createElement('td');
+    planCell.innerHTML = mediaPlanCell(section.name, project.dates, section.seoSeries, start, end, start, end);
+    row.appendChild(planCell);
     body.appendChild(row);
   });
-  $('#editorial-summary-note').textContent = `Итоги за ${formatPeriod(start, end)}, сортировка по SEO + Direct.`;
+  $('#editorial-summary-note').textContent = `Итоги за ${formatPeriod(start, end)}, сортировка по SEO + Direct. «SEO к плану» — только дни периода с 01.10.2026, когда действует план.`;
 }
 
 function renderMedia() {
@@ -829,9 +864,15 @@ function renderMedia() {
   const directTotal = sum(idx.map((i) => direct[i]));
   const total = seoTotal + directTotal;
   const period = formatPeriod(state.mediaFrom, state.mediaTo);
+  const planSeries = project.id === 'skillbox-media' && window.MediaPlan && MediaPlan.ready() ? MediaPlan.alignTo(project.dates, state.mediaSection) : null;
+  const inPeriod = planSeries && idx.some((i) => planSeries.base[i] !== null);
   const chart = aggregateRange(project.dates, [
     { name: 'SEO', values: seo, className: 'line-primary' },
     { name: 'Прямой', values: direct, className: 'line-black' },
+    ...(inPeriod ? [
+      { name: 'План SEO: благоприятный', values: planSeries.favorable, className: 'line-plan-fav', swatch: 'fav', pointClass: 'point-fav', requireComplete: true, hideNull: true },
+      { name: 'План SEO: база', values: planSeries.base, className: 'line-plan-base', swatch: 'base', requireComplete: true, hideNull: true },
+    ] : []),
   ], state.mediaFrom, state.mediaTo, state.mediaGranularity);
   $('#media-kpis').innerHTML = [
     kpi('SEO-визиты', formatInt(seoTotal), period, true, sparkline(chart.series[0].values)),
@@ -841,9 +882,21 @@ function renderMedia() {
   ].join('');
   const selectionLabel = project.id === 'skillbox-media' ? `${project.name} · ${label}` : project.name;
   $('#media-chart-note').textContent = `${selectionLabel} · ${project.url} · ${period} · ${granularityLabel(state.mediaGranularity)}`;
-  renderLineChart($('#media-chart'), chart.dates, chart.series, { width: window.innerWidth < 640 ? 360 : 1200 });
+  const chartOptions = { width: window.innerWidth < 640 ? 360 : 1200 };
+  if (inPeriod) {
+    const [fav, base] = [chart.series[2].values, chart.series[3].values];
+    chartOptions.band = { lower: base, upper: fav };
+    chartOptions.tooltipExtra = (i) => {
+      const st = MediaPlan.status(chart.series[0].values[i], base[i], fav[i]);
+      return st ? `<br><span class="tt-plan ${st.cls}">${st.label} · ${MediaPlan.signedPct(chart.series[0].values[i] / base[i] - 1)} к базе</span>` : '';
+    };
+    $('#media-chart-note').textContent += ' · зелёная полоса — план SEO (база — благоприятный), неполные недели/месяцы без плана';
+  }
+  $('#media-plan-legend').hidden = !inPeriod;
+  renderLineChart($('#media-chart'), chart.dates, chart.series, chartOptions);
   renderMediaMonthly(project.dates, seo, direct, state.mediaFrom, state.mediaTo);
   renderEditorialSummary(project, state.mediaFrom, state.mediaTo);
+  if (window.MediaPlan) MediaPlan.render();
 }
 
 function setupMediaControls() {
@@ -875,6 +928,8 @@ function loadUrlState() {
   if (state.data.leads.coreDirections.some((item) => item.name === params.get('direction'))) state.direction = params.get('direction');
   if (state.data.media.projects.some((item) => item.id === params.get('project'))) state.mediaId = params.get('project');
   if (params.get('section')) state.mediaSection = params.get('section');
+  if (/^(2026-1[0-2]|q4)$/.test(params.get('plan') || '')) state.planPeriod = params.get('plan');
+  if (['cum', 'day', 'week'].includes(params.get('planView'))) state.planView = params.get('planView');
   if (grains.includes(params.get('grain'))) {
     if (state.view === 'media') state.mediaGranularity = params.get('grain');
     else if (state.view === 'leads') state.leadGranularity = params.get('grain');
@@ -909,6 +964,8 @@ function updateUrl() {
     params.set('grain', state.mediaGranularity);
     params.set('from', state.mediaFrom);
     params.set('to', state.mediaTo);
+    if (state.mediaId === 'skillbox-media' && state.planPeriod) params.set('plan', state.planPeriod);
+    if (state.mediaId === 'skillbox-media' && state.planView !== 'cum') params.set('planView', state.planView);
   } else {
     params.set('lead', state.leadId);
     if (state.leadPage !== 'all') params.set('page', state.leadPage);
@@ -994,7 +1051,9 @@ async function init() {
     loadUrlState();
     populateSelect($('#lead-entity'), state.data.leads.entities, state.leadId);
     populateSelect($('#direction-select'), state.data.leads.coreDirections, state.direction, 'name', 'name');
+    if (window.MediaPlan) MediaPlan.setup();
     setupMediaControls(); setupTabs(); renderLeadSummary(); renderLead(); renderDirection(); renderMedia();
+    if (window.MediaPlan) MediaPlan.load().finally(() => { if (state.view === 'media') { renderMedia(); updateUrl(); } });
     activateView(state.view, false);
     if (window.initRecovery) window.initRecovery();
     if (window.initExperiment) window.initExperiment();

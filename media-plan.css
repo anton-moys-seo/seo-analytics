@@ -1,0 +1,73 @@
+/* План SEO-трафика Skillbox Media: коридор «база — благоприятный сценарий». */
+:root{--plan-top:#2FA84F;--plan-top-bg:#9BE0A6;--plan-norm-bg:#DDF5DC;--plan-low:#E5484D;--plan-low-bg:#F7C6C6;--plan-band:rgba(47,168,79,.16)}
+
+.plan-card{background:var(--surface)}
+.plan-heading{align-items:flex-end}
+.plan-heading .eyebrow{margin-bottom:8px}
+.plan-legend{display:flex;gap:8px;flex-wrap:wrap}
+.plan-controls{margin-bottom:20px}
+.plan-controls .select-control{flex:0 1 240px;min-width:180px}
+
+.plan-badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;color:#000000;vertical-align:middle}
+.plan-badge.plan-top{background:var(--plan-top-bg)}
+.plan-badge.plan-norm{background:var(--plan-norm-bg)}
+.plan-badge.plan-low{background:var(--plan-low-bg)}
+.plan-badge.plan-future{background:#FFFFFF;color:#555555}
+
+.plan-status{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,1fr);gap:24px;align-items:center;border-radius:var(--radius-md);padding:20px 24px;margin-bottom:16px;background:#FFFFFF;border-left:8px solid #D9D9D9}
+.plan-status.plan-top{border-left-color:var(--plan-top)}
+.plan-status.plan-norm{border-left-color:var(--plan-top-bg)}
+.plan-status.plan-low{border-left-color:var(--plan-low)}
+.plan-status.plan-future{grid-template-columns:1fr}
+.plan-status-label{display:block;font-size:26px;line-height:1.15;font-weight:600;letter-spacing:-.02em;margin-bottom:6px}
+.plan-status.plan-top .plan-status-label{color:#1B7A35}
+.plan-status.plan-low .plan-status-label{color:#B42328}
+.plan-status p{margin:0;font-size:14px;line-height:1.5}
+
+.plan-meter{position:relative;display:block;height:16px;border-radius:999px;background:var(--plan-low-bg);overflow:visible}
+.plan-meter i{position:absolute;top:0;bottom:0}
+.plan-meter .pm-low{left:0;background:var(--plan-low-bg);border-radius:999px 0 0 999px}
+.plan-meter .pm-norm{background:var(--plan-norm-bg)}
+.plan-meter .pm-top{background:var(--plan-top-bg);border-radius:0 999px 999px 0}
+.plan-meter .pm-mark{position:absolute;top:-5px;width:6px;height:26px;margin-left:-3px;border-radius:3px;background:#000000;box-shadow:0 0 0 2px #FFFFFF}
+.plan-meter.compact{display:inline-block;width:84px;height:8px;margin-left:10px;vertical-align:middle}
+.plan-meter.compact .pm-mark{top:-4px;width:4px;height:16px;margin-left:-2px}
+.pm-legend{display:flex;justify-content:space-between;font-size:12px;font-weight:500;margin-top:10px;color:#333333}
+
+.plan-kpis{margin-bottom:24px}
+.plan-kpis .kpi-card{min-height:128px;background:#FFFFFF}
+.plan-kpis .kpi-card.primary{background:var(--primary)}
+.plan-kpis .kpi-value{font-size:32px}
+.kpi-card.plan-kpi-top{background:var(--plan-top-bg)!important}
+.kpi-card.plan-kpi-good{background:var(--plan-norm-bg)!important}
+.kpi-card.plan-kpi-low{background:var(--plan-low-bg)!important}
+
+.plan-chart-heading{margin-top:8px}
+.legend-line.plan-base{background:transparent;height:0;border-top:3px dashed #000000}
+.legend-line.plan-fav{background:transparent;height:0;border-top:3px dashed var(--plan-top)}
+.legend-band{display:inline-block;width:28px;height:14px;border-radius:4px;background:var(--plan-band);border:1px solid rgba(47,168,79,.5)}
+.chart .plan-band{fill:var(--plan-band);stroke:none}
+.chart .line-plan-base{fill:none;stroke:#000000;stroke-width:2;stroke-dasharray:7 5;stroke-linecap:round}
+.chart .line-plan-fav{fill:none;stroke:var(--plan-top);stroke-width:2;stroke-dasharray:7 5;stroke-linecap:round}
+.chart .point-fav{fill:var(--plan-top)}
+.tooltip .tt-dot.base{background:#FFFFFF}
+.tooltip .tt-dot.fav{background:var(--plan-top)}
+.tt-plan{display:inline-block;margin-top:6px;padding:2px 8px;border-radius:999px;color:#000000;font-weight:600;font-size:12px}
+.tt-plan.plan-top{background:var(--plan-top-bg)}.tt-plan.plan-norm{background:var(--plan-norm-bg)}.tt-plan.plan-low{background:var(--plan-low-bg)}
+
+.plan-tables{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;margin-top:24px}
+.plan-tables .table-card{margin-bottom:0;padding:24px}
+.plan-tables .card-heading h3{font-size:22px}
+.plan-table td,.plan-table th{padding:12px 12px;white-space:nowrap}
+.plan-table td{background:#F5F5F5}
+.plan-sub{display:block;font-size:12px;color:#666666;margin-top:2px;font-weight:400}
+.direction-total .plan-sub{color:#DDDDDD}
+.plan-table tr[data-plan-period],.plan-section-row{cursor:pointer}
+.plan-table tr[data-plan-period]:hover td,.plan-section-row:hover td{background:#EBEBFF}
+.plan-row-active td{box-shadow:inset 0 2px 0 var(--primary),inset 0 -2px 0 var(--primary)}
+.plan-row-active td:first-child{box-shadow:inset 2px 2px 0 var(--primary),inset 0 -2px 0 var(--primary)}
+.plan-section-row:focus-visible td{outline:2px solid var(--primary);outline-offset:-2px}
+.plan-cell{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.plan-method{margin:20px 0 0;font-size:13px;line-height:1.5;color:#333333}
+
+@media (max-width:760px){.plan-status{grid-template-columns:1fr}.plan-status-label{font-size:22px}.plan-heading{align-items:flex-start;flex-direction:column}}

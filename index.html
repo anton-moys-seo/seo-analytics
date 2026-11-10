@@ -7,10 +7,11 @@
   <meta name="robots" content="noindex, nofollow, noarchive">
   <title>SEO: лиды и медиатрафик</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261103-1">
+  <link rel="stylesheet" href="styles.css?v=20261110-1">
   <link rel="stylesheet" href="updates-all.css?v=20261009-1">
   <link rel="stylesheet" href="products-sf-cd.css?v=20261103-1">
   <link rel="stylesheet" href="ux-shell.css?v=20261030-2">
+  <link rel="stylesheet" href="media-plan.css?v=20261110-1">
 </head>
 <body>
   <header class="site-header">
@@ -261,6 +262,62 @@
         </div>
       </div>
 
+      <article id="media-plan-card" class="chart-card plan-card" hidden aria-labelledby="plan-heading">
+        <div class="card-heading plan-heading">
+          <div>
+            <p class="eyebrow">План SEO-трафика · октябрь–декабрь 2026</p>
+            <h3 id="plan-heading">Как идём относительно плана</h3>
+            <p>Норма — коридор между базой и благоприятным сценарием. Цель — факт выше благоприятного.</p>
+          </div>
+          <div class="plan-legend" aria-label="Статусы">
+            <span class="plan-badge plan-top">Выше плана</span>
+            <span class="plan-badge plan-norm">Норма</span>
+            <span class="plan-badge plan-low">Ниже базы</span>
+          </div>
+        </div>
+        <div class="controls-row chart-controls plan-controls">
+          <label class="select-control project-control"><span>Редакция</span><select id="plan-section"></select></label>
+          <label class="select-control grain-control"><span>Период плана</span><select id="plan-period"><option value="2026-10">Октябрь</option><option value="2026-11">Ноябрь</option><option value="2026-12">Декабрь</option><option value="q4">IV квартал</option></select></label>
+          <label class="select-control grain-control"><span>График</span><select id="plan-view"><option value="cum">Накопленный итог</option><option value="day">По дням</option><option value="week">По неделям</option></select></label>
+        </div>
+        <p id="plan-no-section" class="empty" hidden></p>
+        <div id="plan-body">
+          <div id="plan-status" class="plan-status" aria-live="polite"></div>
+          <div id="plan-kpis" class="kpi-grid plan-kpis"></div>
+          <div class="card-heading media-chart-heading plan-chart-heading">
+            <div class="chart-copy"><h3>Факт против коридора плана</h3><p id="plan-chart-note"></p></div>
+            <div class="legend" aria-label="Легенда">
+              <span><i class="legend-line seo"></i>Факт</span>
+              <span><i class="legend-line plan-base"></i>База</span>
+              <span><i class="legend-line plan-fav"></i>Благоприятный</span>
+              <span><i class="legend-band"></i>Коридор нормы</span>
+            </div>
+          </div>
+          <div id="plan-chart" class="chart" role="img" aria-label="Накопленный SEO-трафик против базы и благоприятного сценария"></div>
+          <div class="plan-tables">
+            <article class="table-card">
+              <div class="card-heading"><div><h3>План и факт по месяцам</h3><p id="plan-months-note"></p></div></div>
+              <div class="table-wrap">
+                <table class="plan-table">
+                  <thead><tr><th>Период</th><th>Факт</th><th>База</th><th>Благоприятный</th><th>К базе</th><th>К благоприятному</th><th>Статус</th><th>Прогноз по темпу</th></tr></thead>
+                  <tbody id="plan-months"></tbody>
+                </table>
+              </div>
+            </article>
+            <article class="table-card">
+              <div class="card-heading"><div><h3>Редакции против плана</h3><p id="plan-sections-note"></p></div></div>
+              <div class="table-wrap compact">
+                <table class="plan-table">
+                  <thead><tr><th>Редакция</th><th>Факт</th><th>База</th><th>Благоприятный</th><th>К базе</th><th>Статус</th><th>Прогноз по темпу</th></tr></thead>
+                  <tbody id="plan-sections"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+          <p id="plan-method" class="plan-method"></p>
+        </div>
+      </article>
+
       <div id="media-kpis" class="kpi-grid" aria-live="polite"></div>
 
       <article class="chart-card media-chart-card">
@@ -285,6 +342,7 @@
           <div class="legend" aria-label="Легенда">
             <span><i class="legend-line seo"></i>SEO</span>
             <span><i class="legend-line direct"></i>Прямой</span>
+            <span id="media-plan-legend" hidden><i class="legend-band"></i>План SEO: база — благоприятный</span>
           </div>
         </div>
         <div id="media-chart" class="chart" role="img" aria-label="График SEO и прямых визитов"></div>
@@ -295,7 +353,7 @@
           <div class="card-heading"><div><h3>По месяцам</h3><p id="media-monthly-note">За выбранный период.</p></div></div>
           <div class="table-wrap compact">
             <table>
-              <thead><tr><th>Месяц</th><th>SEO</th><th>Прямой</th><th>Доля SEO</th></tr></thead>
+              <thead><tr><th>Месяц</th><th>SEO</th><th>Прямой</th><th>Доля SEO</th><th title="Факт SEO к базе за дни с планом; цвет — статус коридора">К базе</th></tr></thead>
               <tbody id="media-monthly"></tbody>
             </table>
           </div>
@@ -304,7 +362,7 @@
           <div class="card-heading"><div><h3>Редакции Skillbox Media</h3><p id="editorial-summary-note">Итоги за выбранный период.</p></div></div>
           <div class="table-wrap compact editorial-table">
             <table>
-              <thead><tr><th>Редакция</th><th>SEO</th><th>Прямой</th></tr></thead>
+              <thead><tr><th>Редакция</th><th>SEO</th><th>Прямой</th><th title="Факт SEO к базе за дни с планом; цвет — статус коридора">К базе</th></tr></thead>
               <tbody id="editorial-summary"></tbody>
             </table>
           </div>
@@ -570,53 +628,77 @@
     <section id="experiment" class="dashboard-section" aria-labelledby="experiment-heading">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Только SEO · Contented · Skillfactory · Kids · период с 01.06.2026</p>
+          <p class="eyebrow">Только SEO · Skillfactory · Contented · Kids · история с 01.06.2026</p>
           <h2 id="experiment-heading">Эксперимент: вайбкодинг</h2>
         </div>
       </div>
 
-      <article class="chart-card">
-        <div class="chart-filter-bar" aria-label="Фильтры эксперимента">
-          <div class="filter-copy">
-            <span class="filter-index">1</span>
-            <div><strong>Настройте график</strong><p>Метрика, детализация и период. Пунктиром отмечена дата выкатки новой версии.</p></div>
+      <article id="exp-funnel-card" class="chart-card exp-funnel-card">
+        <div class="chart-filter-bar exp-filter-bar" aria-label="Фильтры эксперимента">
+          <div class="exp-brand-row">
+            <span class="exp-brand-caption">Бренд</span>
+            <div id="exp-brand-tabs" class="exp-brand-tabs" role="group" aria-label="Бренд"></div>
           </div>
           <div class="controls-row chart-controls">
-            <label class="select-control project-control"><span>Курс</span><select id="exp-product" aria-label="Курс эксперимента"></select></label>
-            <label class="select-control project-control"><span>Метрика</span><select id="exp-metric">
-              <option value="visits">Визиты</option>
-              <option value="leads">Лиды</option>
-              <option value="cr1">CR1 (лиды к визитам)</option>
-              <option value="sales">Продажи</option>
-              <option value="cr2">CR2 (продажи к лидам)</option>
-              <option value="revenue">Выручка</option>
+            <label class="select-control project-control exp-page-control"><span>Страница</span><select id="exp-product" aria-label="Страница эксперимента"></select></label>
+            <label class="select-control project-control"><span>Окно сравнения</span><select id="exp-window">
+              <option value="auto">Равные окна: все дни после релиза</option>
+              <option value="7">7 дней до / после</option>
+              <option value="14">14 дней до / после</option>
+              <option value="28">28 дней до / после</option>
+              <option value="full">Весь период до и после</option>
             </select></label>
-            <label class="select-control grain-control"><span>Детализация</span><select id="exp-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
-            <label class="date-control"><span>Дата с</span><input id="exp-date-from" type="date"></label>
-            <label class="date-control"><span>Дата по</span><input id="exp-date-to" type="date"></label>
           </div>
+        </div>
+        <div class="card-heading">
+          <div>
+            <h3 id="exp-funnel-title">Воронка до и после релиза</h3>
+            <p id="exp-funnel-note"></p>
+          </div>
+          <div class="exec-legend" aria-hidden="true">
+            <span class="exec-badge exec-good">рост</span>
+            <span class="exec-badge exec-mid">до −10%</span>
+            <span class="exec-badge exec-low">падение больше 10%</span>
+          </div>
+        </div>
+        <div id="exp-funnel" class="exp-funnel"></div>
+      </article>
+
+      <article class="chart-card">
+        <div class="controls-row chart-controls exp-chart-controls">
+          <label class="select-control project-control"><span>Показатель воронки</span><select id="exp-metric">
+            <option value="visits">Визиты</option>
+            <option value="leads">Лиды</option>
+            <option value="cr1">CR1 (лиды к визитам)</option>
+            <option value="sales">Продажи</option>
+            <option value="cr2">CR2 (продажи к лидам)</option>
+            <option value="revenue">Выручка</option>
+          </select></label>
+          <label class="select-control grain-control"><span>Детализация</span><select id="exp-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
+          <label class="date-control"><span>Дата с</span><input id="exp-date-from" type="date"></label>
+          <label class="date-control"><span>Дата по</span><input id="exp-date-to" type="date"></label>
         </div>
         <div class="card-heading chart-heading-safe">
           <div>
             <h3 id="exp-chart-title">Динамика метрики</h3>
             <p id="exp-chart-note"></p>
           </div>
-          <div class="legend" id="exp-legend" aria-label="Легенда продуктов"></div>
+          <div class="legend" id="exp-legend" aria-label="Легенда"></div>
         </div>
-        <div id="exp-chart" class="chart" role="img" aria-label="График метрик эксперимента по продуктам"></div>
+        <div id="exp-chart" class="chart" role="img" aria-label="Динамика показателя воронки выбранной страницы"></div>
       </article>
 
       <article class="table-card">
         <div class="card-heading">
           <div>
-            <h3>Продукты: все метрики за период</h3>
-            <p id="exp-table-note"></p>
+            <h3>Страницы бренда: до и после релиза</h3>
+            <p id="exp-results-note"></p>
           </div>
         </div>
-        <div class="table-wrap compact">
-          <table>
-            <thead><tr><th>Продукт</th><th>Визиты</th><th>Лиды</th><th>CR1</th><th>Продажи</th><th>CR2</th><th>Выручка</th></tr></thead>
-            <tbody id="exp-table-body"></tbody>
+        <div class="table-wrap">
+          <table class="exp-results-table">
+            <thead><tr><th>Страница</th><th>Релиз</th><th>Дней до / после</th><th>Визиты в день</th><th>Лиды в день</th><th>CR1</th><th>Продажи в день</th><th>CR2</th><th>Выручка в день</th></tr></thead>
+            <tbody id="exp-results-body"></tbody>
           </table>
         </div>
       </article>
@@ -624,19 +706,14 @@
       <article class="table-card">
         <div class="card-heading">
           <div>
-            <h3>Результаты с запуска нового лендинга</h3>
-            <p id="exp-results-note"></p>
-          </div>
-          <div class="exec-legend" aria-hidden="true">
-            <span class="exec-badge exec-good">от 100%</span>
-            <span class="exec-badge exec-mid">90–99,9%</span>
-            <span class="exec-badge exec-low">ниже 90%</span>
+            <h3>Страницы бренда: все метрики за период графика</h3>
+            <p id="exp-table-note"></p>
           </div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap compact">
           <table>
-            <thead id="exp-results-head"><tr><th>Метрика</th><th>Страница</th></tr></thead>
-            <tbody id="exp-results-body"></tbody>
+            <thead><tr><th>Страница</th><th>Визиты</th><th>Лиды</th><th>CR1</th><th>Продажи</th><th>CR2</th><th>Выручка</th></tr></thead>
+            <tbody id="exp-table-body"></tbody>
           </table>
         </div>
       </article>
@@ -660,12 +737,13 @@
   </footer>
   <script src="ux-shell.js?v=20261102-1" defer></script>
   <script src="recovery.js?v=20261002-2" defer></script>
-  <script src="experiment.js?v=20261002-2" defer></script>
+  <script src="experiment.js?v=20261110-1" defer></script>
   <script src="xlsx-export.js?v=20261002-1" defer></script>
   <script src="updates.js?v=20261002-9" defer></script>
   <script src="updates-all.js?v=20261009-1" defer></script>
   <script src="products_model.js?v=20261102-2" defer></script>
   <script src="products-sf-cd.js?v=20261103-1" defer></script>
-  <script src="app.js?v=20261103-1" defer></script>
+  <script src="media-plan.js?v=20261110-1" defer></script>
+  <script src="app.js?v=20261110-1" defer></script>
 </body>
 </html>

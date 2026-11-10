@@ -134,3 +134,43 @@ footer{max-width:1440px;margin:0 auto;padding:32px;display:flex;justify-content:
 tr.lead-pages-total td{background:#EBEBEB}
 tr.lead-pages-active td{background:#E7E7FF}
 @media (max-width:640px){.lead-pages-wrap td{white-space:normal}}
+
+/* Вайбкодинг: бренд → страница → воронка до/после релиза (с 10.11.2026) */
+.exp-filter-bar{position:static;margin-bottom:24px}
+.exp-brand-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.exp-brand-caption{font-size:14px;font-weight:500}
+.exp-brand-tabs{display:flex;gap:8px;flex-wrap:wrap}
+.exp-brand-tab{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 18px;border:0;border-radius:999px;background:#F5F5F5;color:#000000;font:inherit;font-weight:500;cursor:pointer}
+.exp-brand-tab span{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:#FFFFFF;font-size:12px;font-weight:600}
+.exp-brand-tab:hover{background:#E4E4FF}
+.exp-brand-tab.active{background:#3D3BFF;color:#FFFFFF}
+.exp-brand-tab.active span{background:#FFFFFF;color:#3D3BFF}
+.exp-brand-tab:focus-visible{outline:3px solid #3D3BFF;outline-offset:2px}
+.exp-page-control{max-width:460px!important;flex-basis:380px!important}
+.exp-chart-controls{margin-bottom:24px}
+.exp-funnel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr) minmax(0,.72fr)) minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:stretch}
+.exp-stage{display:flex;flex-direction:column;gap:10px;background:#FFFFFF;border-radius:var(--radius-md);padding:18px 18px 12px;min-width:0}
+.exp-stage-label,.exp-conn-label{font-size:13px;font-weight:500}
+.exp-stage-values{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.exp-stage-values span{display:flex;flex-direction:column;font-size:18px;line-height:1.1}
+.exp-stage-values small{font-size:11px;font-weight:500;color:#666666;margin-bottom:3px}
+.exp-stage-values b{font-size:26px;font-weight:600;letter-spacing:-.02em}
+.exp-stage-values .exp-arrow{font-size:18px;color:#999999;padding-bottom:2px}
+.exp-stage .kpi-spark{width:100%;height:40px;margin-top:auto}
+.exp-conn{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px;padding:14px;border-radius:var(--radius-md);border:2px dashed #CFCFE8;font-size:15px;min-width:0}
+.exp-conn b{font-size:20px;font-weight:600}
+.exp-conn .exp-arrow{color:#999999;line-height:1}
+.exp-delta{min-width:0!important;align-self:flex-start;font-size:13px;padding:3px 10px}
+.exp-delta-na,.exp-delta-new{display:inline-block;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:500;background:#EDEDED}
+.exp-delta-new{background:#DDF5DC}
+#exp-funnel-note b{font-weight:600}
+.exp-warn{display:block;margin-top:6px;color:#B42328;font-weight:500}
+.exp-results-table td{vertical-align:top;white-space:nowrap}
+.exp-results-table td:first-child{white-space:normal;min-width:200px}
+.exp-page-row{cursor:pointer}
+.exp-page-row:hover td{background:#EBEBFF}
+.exp-page-row:focus-visible td{outline:2px solid #3D3BFF;outline-offset:-2px}
+.chart .exp-avg-after{fill:none;stroke:#2FA84F;stroke-width:2.4;stroke-dasharray:8 6;stroke-linecap:round}
+.legend-line.exp-after{background:#2FA84F}
+@media (max-width:1200px){.exp-funnel{grid-template-columns:repeat(2,minmax(0,1fr))}.exp-conn{flex-direction:row;flex-wrap:wrap;align-items:center}}
+@media (max-width:640px){.exp-funnel{grid-template-columns:1fr}}
