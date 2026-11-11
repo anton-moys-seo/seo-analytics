@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="products-sf-cd.css?v=20261103-1">
   <link rel="stylesheet" href="ux-shell.css?v=20261030-2">
   <link rel="stylesheet" href="media-plan.css?v=20261110-1">
+  <style>.nested-tab-link{align-self:center;color:var(--text);font-weight:500;text-decoration:none;padding:var(--space-3) var(--space-2)}.nested-tab-link:hover{text-decoration:underline;text-underline-offset:5px}</style>
 </head>
 <body>
   <header class="site-header">
@@ -44,6 +45,7 @@
     <nav id="leads-navigation" class="nested-tabs" aria-label="Лиды" hidden>
       <button class="nested-tab" data-target="leads" type="button">План и факт</button>
       <button class="nested-tab" data-target="products-sf-cd" type="button">Продукты SF/CD</button>
+      <a class="nested-tab-link" href="plan-2027.html" data-keep-hash>План 2027: SF и CD →</a>
     </nav>
 
     <div id="media-navigation" hidden>
@@ -68,6 +70,7 @@
           <p class="eyebrow">Горячая воронка</p>
           <h2 id="leads-heading">План и факт лидов</h2>
         </div>
+        <a class="rec-csv-button" href="plan-2027.html" data-keep-hash style="text-decoration:none;display:inline-block">План SF и CD на дек 2026 — дек 2027 →</a>
       </div>
 
       <div id="lead-attention" class="attention" aria-live="polite" hidden></div>
@@ -735,7 +738,7 @@
     <span>Skillbox Analytics</span>
     <span>Power BI · Яндекс Метрика</span>
   </footer>
-  <script src="ux-shell.js?v=20261102-1" defer></script>
+  <script src="ux-shell.js?v=20261111-1" defer></script>
   <script src="recovery.js?v=20261002-2" defer></script>
   <script src="experiment.js?v=20261110-1" defer></script>
   <script src="xlsx-export.js?v=20261002-1" defer></script>
@@ -744,6 +747,7 @@
   <script src="products_model.js?v=20261102-2" defer></script>
   <script src="products-sf-cd.js?v=20261103-1" defer></script>
   <script src="media-plan.js?v=20261110-1" defer></script>
+  <script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[data-keep-hash]');if(a){a.href=a.getAttribute('href').split('#')[0]+location.hash;}},true);</script>
   <script src="app.js?v=20261110-1" defer></script>
 </body>
 </html>

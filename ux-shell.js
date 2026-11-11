@@ -45,6 +45,7 @@
     ] },
     { id: 'forecast', title: 'Прогноз', tone: 'peach', items: [
       { view: 'forecast', label: `${afterColon(tabText('forecast'), 'Следующий месяц')}: сценарии`, hint: 'Тренд, сезонность и спрос', icon: 'forecast' },
+      { view: 'plan-2027', label: 'План 2027: SF и CD', hint: 'SEO и DIRECT, база и оптимистичный', icon: 'target', href: 'plan-2027.html' },
     ] },
     { id: 'media', title: 'Медиатрафик', tone: 'mint', items: [
       { view: 'media', label: 'Трафик', hint: 'SEO и прямой трафик, редакции', icon: 'traffic' },
@@ -107,7 +108,7 @@
     <div class="ux-group" data-group="${g.id}">
       <p class="ux-group-title"><span class="ux-tone ux-tone-${g.tone}" aria-hidden="true"></span>${esc(g.title)}</p>
       <ul>${g.items.map((it) => `
-        <li><a class="ux-link" href="?view=${it.view}" data-view="${it.view}">
+        <li><a class="ux-link" href="${it.href ? esc(it.href) : `?view=${it.view}`}" data-view="${it.view}"${it.href ? ` data-external="${esc(it.href)}"` : ''}>
           <span class="ux-link-ico ux-tone-${g.tone}">${icon(it.icon)}</span>
           <span class="ux-link-text"><span class="ux-link-label">${esc(it.label)}</span><span class="ux-link-meta" data-fresh-for="${it.view}">${esc(it.hint)}</span></span>
         </a></li>`).join('')}
@@ -159,7 +160,9 @@
   doc.body.appendChild(palette);
 
   // --- Переход: клик по существующей кнопке, чтобы URL, фильтры и ленивые загрузки работали как раньше. ---
+  const EXTERNAL = Object.fromEntries(ITEMS.filter((it) => it.href).map((it) => [it.view, it.href]));
   function go(view) {
+    if (EXTERNAL[view]) { location.href = EXTERNAL[view] + location.hash; return; }
     const btn = $(`.nested-tab[data-target="${view}"]:not([data-media-results])`) || $(`[data-target="${view}"]`);
     if (!btn) return;
     btn.click();
@@ -170,12 +173,14 @@
     const link = e.target.closest('.ux-link');
     if (!link) return;
     syncHrefs();
+    if (link.dataset.external) return; // отдельная страница: обычный переход, ключ уже в href
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return; // новая вкладка — обычная ссылка
     e.preventDefault();
     go(link.dataset.view);
   });
   // Сохраняем сериализованные фильтры и #fragment; меняем только целевой view.
   const syncHrefs = () => $$('.ux-link', sidebar).forEach((a) => {
+    if (a.dataset.external) { a.href = a.dataset.external + location.hash; return; }
     const url = new URL(location.href);
     url.searchParams.set('view', a.dataset.view);
     a.href = url.href;
