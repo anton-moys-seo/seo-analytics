@@ -7,42 +7,79 @@
 .p27-summary h2{margin:0 0 12px;font-size:28px;letter-spacing:-.02em}
 .p27-summary p{margin:0 0 10px;line-height:1.55;max-width:1100px}
 .p27-summary p:last-child{margin-bottom:0}
-.p27-filter{position:static;background:#fff}
 .p27-white{background:#fff;border:1px solid #EBEBEB}
-.legend-line.p27-l-base{background:#000;height:0;border-top:3px dashed #000}
-.legend-line.p27-l-opt{background:#3D3BFF}
-.legend-line.p27-l-plan{background:#9C9C9C}
-.legend-line.p27-l-ws{background:#968BAB}
-.p27-sw{display:inline-block;width:14px;height:14px;border-radius:4px}
-.p27-legend-small{margin-bottom:12px;font-size:13px}
+
+/* Панель переключателей */
+.p27-switchbar{position:sticky;top:80px;z-index:15;display:flex;align-items:center;gap:24px;flex-wrap:wrap;padding:14px 20px;margin:40px 0 24px;background:#fff;border:1px solid #EBEBEB;border-radius:var(--radius-md);box-shadow:0 6px 24px rgba(0,0,0,.06)}
+.p27-seg{display:inline-flex;background:#F0F0F0;border-radius:999px;padding:4px;gap:2px}
+.p27-seg-btn{border:0;background:transparent;border-radius:999px;padding:10px 22px;font:inherit;font-weight:600;font-size:16px;color:#000;cursor:pointer;transition:background .15s,color .15s}
+.p27-seg-btn:hover{background:#E2E2E2}
+.p27-seg-btn.is-on{background:#000;color:#fff}
+.p27-seg-btn:focus-visible{outline:3px solid #3D3BFF;outline-offset:2px}
+.p27-seg-small .p27-seg-btn{padding:8px 16px;font-size:14px;font-weight:500}
+.p27-seg-small .p27-seg-btn.is-on{background:#3D3BFF}
+.p27-switch-group{display:flex;align-items:center;gap:10px}
+.p27-switch-label{font-size:14px;font-weight:500}
+.p27-switch-hint{margin:0;font-size:13px;line-height:1.4;flex:1 1 260px;color:#333}
+
+.p27-brand-head{display:flex;align-items:baseline;gap:20px;flex-wrap:wrap;margin:8px 0 20px}
+.p27-brand-head h2{font-size:40px;letter-spacing:-.03em;margin:0}
+.p27-brand-head p{margin:0;font-size:14px}
+.kpi-card .kpi-sub{display:block;font-size:13px;margin-top:6px;opacity:.85}
+
+.p27-chart-head{flex-wrap:wrap}
+.p27-chart-controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.p27-mini-select{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:500}
+.p27-mini-select select{min-height:40px;border:1px solid #000;border-radius:999px;background:#fff;padding:0 12px;font:inherit;cursor:pointer}
+
+/* Легенда: образцы рисуются тем же SVG-стилем, что и линии графика */
+.p27-legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0 0 14px;font-size:13px;font-weight:500}
+.p27-legend span{display:inline-flex;align-items:center;gap:8px}
+.p27-legend svg{flex:0 0 auto;overflow:visible}
+
+.p27-tables{display:grid;grid-template-columns:1fr;gap:0}
 .p27-chart-small{min-height:300px}
 .p27-split{margin-bottom:24px}
 .p27-split .chart-card{margin-bottom:0}
+
 .p27-table{font-variant-numeric:tabular-nums}
 .p27-table th{white-space:nowrap}
 .p27-table th.num,.p27-table td.num{text-align:right}
+.p27-table thead tr.p27-group th{background:#fff;color:#000;padding:4px 16px 0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;border-radius:0}
+.p27-table thead tr.p27-group th.p27-g-feed{color:#3D3BFF}
+.p27-table thead tr.p27-group th.p27-g-off{color:#000}
+.p27-table th.p27-sep,.p27-table td.p27-sep{border-left:2px solid #fff}
 .p27-table tr.p27-q td{background:#E9E9FF;font-weight:500}
 .p27-table tr.p27-y td{background:#202020;color:#fff;font-weight:600}
 .p27-table tr.p27-t td{background:#3D3BFF;color:#fff;font-weight:600}
 .p27-table td.p27-opt{color:#3D3BFF;font-weight:500}
-.p27-table tr.p27-q td.p27-opt{color:#2b29c9}
 .p27-table tr.p27-y td.p27-opt,.p27-table tr.p27-t td.p27-opt{color:#D8FF28}
-.p27-table .p27-sub{display:block;font-size:11px;font-weight:400;opacity:.75}
+.p27-table td.p27-dim{color:#8A8A8A}
+.p27-table tr.p27-y td.p27-dim,.p27-table tr.p27-t td.p27-dim{color:#BDBDBD}
+.p27-table .p27-sub{display:block;font-size:11px;font-weight:400;opacity:.75;white-space:nowrap}
+.p27-table td.p27-active{box-shadow:inset 0 0 0 9999px rgba(61,59,255,.06)}
 .p27-up{color:#1d7a1a}.p27-down{color:#b42318}
 .p27-table tr.p27-y .p27-up,.p27-table tr.p27-y .p27-down,.p27-table tr.p27-t .p27-up,.p27-table tr.p27-t .p27-down{color:#fff}
+.p27-table tr.p27-brand td{background:#fff;font-weight:700;font-size:15px;padding-top:18px}
+
 .p27-method ol,.p27-method ul{margin:0 0 24px;padding-left:22px;line-height:1.55;font-size:15px}
 .p27-method li{margin-bottom:8px}
 .p27-method h4{font-size:20px;margin:8px 0 12px}
 .p27-method a,.p27-summary a{color:#3D3BFF}
-.chart .p27-band{fill:#3D3BFF;opacity:.10}
-.chart .p27-line-fact{fill:none;stroke:#000;stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
-.chart .p27-line-est{fill:none;stroke:#000;stroke-width:2;stroke-dasharray:3 4}
-.chart .p27-line-plan{fill:none;stroke:#9C9C9C;stroke-width:2;stroke-dasharray:6 5}
-.chart .p27-line-base{fill:none;stroke:#000;stroke-width:2.6;stroke-dasharray:9 6}
-.chart .p27-line-opt{fill:none;stroke:#3D3BFF;stroke-width:3}
-.chart .p27-line-ws{fill:none;stroke:#968BAB;stroke-width:2}
-.chart .p27-divider{stroke:#000;stroke-width:1;stroke-dasharray:3 4}
-.chart .p27-divider-label{font-size:12px;font-weight:500;fill:#000}
-.chart .p27-dot{fill:#000}
-.chart .p27-dot-opt{fill:#3D3BFF}
-@media (max-width:900px){.p27-hero h1{font-size:34px}.p27-top-nav{display:none}.split-grid{grid-template-columns:1fr}}
+
+/* Линии графиков — один источник для графика и легенды */
+.p27-band{fill:#3D3BFF;opacity:.12}
+.p27-s-fact{fill:none;stroke:#000;stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
+.p27-s-factclean{fill:none;stroke:#8A8A8A;stroke-width:1.8;stroke-linejoin:round}
+.p27-s-est{fill:none;stroke:#000;stroke-width:2.2;stroke-dasharray:2 4;stroke-linecap:round}
+.p27-s-plan{fill:none;stroke:#9C9C9C;stroke-width:2;stroke-dasharray:6 5}
+.p27-s-base{fill:none;stroke:#000;stroke-width:2.6;stroke-dasharray:9 6}
+.p27-s-opt{fill:none;stroke:#3D3BFF;stroke-width:3}
+.p27-s-ws{fill:none;stroke:#968BAB;stroke-width:2;stroke-dasharray:4 3}
+.p27-s-leads{fill:none;stroke:#000;stroke-width:2}
+.p27-s-one{stroke:#000;stroke-width:1}
+.p27-divider{stroke:#000;stroke-width:1;stroke-dasharray:3 4}
+.p27-divider-label{font-size:12px;font-weight:500;fill:#000}
+.p27-dot{fill:#000}
+.p27-dot-opt{fill:#3D3BFF}
+@media (max-width:900px){.p27-hero h1{font-size:34px}.p27-top-nav{display:none}.split-grid{grid-template-columns:1fr}.p27-switchbar{gap:12px}.p27-brand-head h2{font-size:30px}}

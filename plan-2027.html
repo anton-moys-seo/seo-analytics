@@ -7,7 +7,7 @@
   <title>План лидов SEO и DIRECT 2027 · SF и CD</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css?v=20261110-1">
-  <link rel="stylesheet" href="plan-2027.css?v=20261111-1">
+  <link rel="stylesheet" href="plan-2027.css?v=20261111-3">
 </head>
 <body>
   <header class="site-header p27-header">
@@ -26,7 +26,7 @@
       <div>
         <p class="eyebrow">Лиды · Горячая воронка · план</p>
         <h1>План лидов SEO и DIRECT: декабрь 2026 — декабрь 2027</h1>
-        <p class="hero-copy">Skillfactory и Contented. Два сценария: база и оптимистичный (доработка страниц курсов и каталогов, дубли курсов, расширение семантики). Определения лидов совпадают с вкладкой «План и факт».</p>
+        <p class="hero-copy">Skillfactory и Contented по отдельности. Сценарии «база» и «оптимистичный», каждый — без потока yandex-feed и с ним. Определения лидов совпадают с вкладкой «План и факт».</p>
       </div>
       <div class="hero-mark" aria-hidden="true">2027</div>
     </section>
@@ -36,79 +36,92 @@
       <div id="p27-summary"></div>
     </section>
 
-    <div id="p27-kpis" class="kpi-grid" aria-live="polite"></div>
-
-    <article class="chart-card">
-      <div class="chart-filter-bar p27-filter">
-        <div class="filter-copy"><span class="filter-index">1</span><div><strong>Срез графиков</strong><p>Проект и канал. Таблицы ниже показывают оба проекта.</p></div></div>
-        <div class="controls-row chart-controls">
-          <label class="select-control project-control"><span>Проект</span>
-            <select id="p27-brand"><option value="all">Skillfactory + Contented</option><option value="sf">Skillfactory</option><option value="cd">Contented</option></select></label>
-          <label class="select-control grain-control"><span>Канал</span>
-            <select id="p27-channel"><option value="both">SEO + DIRECT</option><option value="seo">SEO</option><option value="direct">DIRECT</option></select></label>
-          <label class="select-control grain-control"><span>История с</span>
-            <select id="p27-from"><option value="2024-04">апреля 2024</option><option value="2025-01" selected>января 2025</option><option value="2026-01">января 2026</option></select></label>
-        </div>
-      </div>
-      <div class="card-heading">
-        <div><h3 id="p27-chart-title">Лиды по месяцам: факт и план</h3><p id="p27-chart-note"></p></div>
-        <div class="legend">
-          <span><i class="legend-line" style="background:#000"></i>Факт</span>
-          <span><i class="legend-line p27-l-plan"></i>План Power BI</span>
-          <span><i class="legend-line p27-l-base"></i>База</span>
-          <span><i class="legend-line p27-l-opt"></i>Оптимистичный</span>
-        </div>
-      </div>
-      <div id="p27-chart" class="chart" role="img" aria-label="График лидов: факт, план и прогноз"></div>
+    <article class="chart-card p27-white" aria-labelledby="p27-overview-h">
+      <div class="card-heading"><div><h3 id="p27-overview-h">Сводка по проектам и каналам</h3><p>Лиды за 2027 год. «С фидом» — если yandex-feed вернётся с декабря 2026 на средний уровень октября 2025 — сентября 2026. На DIRECT фид не влияет.</p></div></div>
+      <div class="table-wrap"><table class="p27-table" id="p27-overview"></table></div>
     </article>
 
-    <article class="chart-card p27-white">
-      <div class="card-heading">
-        <div><h3>SEO: план по месяцам</h3><p>Лиды горячей воронки, канал SEO. «Год назад» — факт того же месяца годом раньше; ноябрь 2026 — оценка по факту 1–10 ноября, декабрь 2026 — база.</p></div>
-        <button class="rec-csv-button" type="button" data-csv="seo">Скачать CSV</button>
+    <!-- Липкая панель: проект + фид -->
+    <div class="p27-switchbar" id="p27-switchbar">
+      <div class="p27-seg" role="tablist" aria-label="Проект" id="p27-brand-tabs">
+        <button type="button" role="tab" data-brand="sf" class="p27-seg-btn">Skillfactory</button>
+        <button type="button" role="tab" data-brand="cd" class="p27-seg-btn">Contented</button>
       </div>
-      <div class="table-wrap"><table class="p27-table" id="p27-table-seo"></table></div>
-    </article>
-
-    <article class="chart-card p27-white">
-      <div class="card-heading">
-        <div><h3>DIRECT: план по месяцам</h3><p>Лиды горячей воронки, канал Direct (прямые заходы) в кластере Direct+SEO.</p></div>
-        <button class="rec-csv-button" type="button" data-csv="direct">Скачать CSV</button>
+      <div class="p27-switch-group">
+        <span class="p27-switch-label" id="p27-feed-label">yandex-feed в SEO</span>
+        <div class="p27-seg p27-seg-small" role="radiogroup" aria-labelledby="p27-feed-label" id="p27-feed-tabs">
+          <button type="button" role="radio" data-feed="0" class="p27-seg-btn">Без фида</button>
+          <button type="button" role="radio" data-feed="1" class="p27-seg-btn">С фидом</button>
+        </div>
       </div>
-      <div class="table-wrap"><table class="p27-table" id="p27-table-direct"></table></div>
-    </article>
-
-    <div class="split-grid p27-split">
-      <article class="chart-card">
-        <div class="card-heading"><div><h3>Из чего складывается оптимистичный сценарий</h3><p id="p27-uplift-note">Прирост к базе, лидов в месяц, по проекту из фильтра.</p></div></div>
-        <div class="legend p27-legend-small">
-          <span><i class="p27-sw" style="background:#3D3BFF"></i>Доработка курсов и каталогов</span>
-          <span><i class="p27-sw" style="background:#968BAB"></i>Дубли курсов</span>
-          <span><i class="p27-sw" style="background:#D8FF28"></i>Расширение семантики</span>
-        </div>
-        <div id="p27-uplift" class="chart p27-chart-small" role="img" aria-label="Вклад доработок в оптимистичный сценарий"></div>
-      </article>
-      <article class="chart-card">
-        <div class="card-heading"><div><h3>Сезонность</h3><p id="p27-season-note">Индекс месяца (среднее = 1,00).</p></div></div>
-        <div class="legend p27-legend-small">
-          <span><i class="legend-line" style="background:#000"></i>Лиды 2024–2026</span>
-          <span><i class="legend-line p27-l-ws"></i>Wordstat 2024–2026</span>
-          <span><i class="legend-line p27-l-opt"></i>Итоговый индекс</span>
-        </div>
-        <div id="p27-season" class="chart p27-chart-small" role="img" aria-label="Индексы сезонности"></div>
-      </article>
+      <p class="p27-switch-hint" id="p27-switch-hint"></p>
     </div>
 
-    <article class="chart-card p27-white">
-      <div class="card-heading"><div><h3>Факт и план 2025–2026 для проверки</h3><p>Выгрузка Power BI 11.11.2026, данные по 10.11.2026. Feed — лиды с utm_source yandex-feed / ya-feed внутри SEO; с 20.10.2026 этот поток пропал, в базу он не включён.</p></div>
-        <button class="rec-csv-button" type="button" data-csv="history">Скачать CSV</button></div>
-      <div class="table-wrap compact"><table class="p27-table" id="p27-table-history"></table></div>
-    </article>
+    <section id="p27-brand-section" aria-live="polite">
+      <div class="p27-brand-head">
+        <h2 id="p27-brand-title">Skillfactory</h2>
+        <p id="p27-brand-scope"></p>
+      </div>
+      <div id="p27-kpis" class="kpi-grid"></div>
 
-    <article class="chart-card p27-white">
-      <div class="card-heading"><div><h3>Спрос в тематиках сайтов: Wordstat</h3><p>Показы по фразе без операторов, вся Россия, январь–сентябрь каждого года (октябрь 2026 в API ещё не появился). Источник: Yandex Cloud Search API, Wordstat, выгрузка 11.11.2026.</p></div></div>
-      <div class="table-wrap compact"><table class="p27-table" id="p27-table-ws"></table></div>
-    </article>
+      <article class="chart-card">
+        <div class="card-heading p27-chart-head">
+          <div><h3 id="p27-chart-title">Лиды по месяцам</h3><p id="p27-chart-note"></p></div>
+          <div class="p27-chart-controls">
+            <div class="p27-seg p27-seg-small" role="radiogroup" aria-label="Канал" id="p27-channel-tabs">
+              <button type="button" role="radio" data-channel="seo" class="p27-seg-btn">SEO</button>
+              <button type="button" role="radio" data-channel="direct" class="p27-seg-btn">DIRECT</button>
+              <button type="button" role="radio" data-channel="both" class="p27-seg-btn">SEO + DIRECT</button>
+            </div>
+            <label class="p27-mini-select">История с
+              <select id="p27-from"><option value="2024-04">апр 2024</option><option value="2025-01">янв 2025</option><option value="2026-01">янв 2026</option></select></label>
+          </div>
+        </div>
+        <div class="p27-legend" id="p27-chart-legend"></div>
+        <div id="p27-chart" class="chart" role="img" aria-label="График лидов: факт, план и прогноз"></div>
+      </article>
+
+      <div class="p27-tables">
+        <article class="chart-card p27-white">
+          <div class="card-heading">
+            <div><h3 id="p27-seo-title">SEO: план по месяцам</h3><p id="p27-seo-note"></p></div>
+            <button class="rec-csv-button" type="button" data-csv="seo">CSV</button>
+          </div>
+          <div class="table-wrap"><table class="p27-table" id="p27-table-seo"></table></div>
+        </article>
+        <article class="chart-card p27-white">
+          <div class="card-heading">
+            <div><h3 id="p27-direct-title">DIRECT: план по месяцам</h3><p>Прямые заходы в кластере Direct+SEO. Фид на канал не влияет.</p></div>
+            <button class="rec-csv-button" type="button" data-csv="direct">CSV</button>
+          </div>
+          <div class="table-wrap"><table class="p27-table" id="p27-table-direct"></table></div>
+        </article>
+      </div>
+
+      <div class="split-grid p27-split">
+        <article class="chart-card">
+          <div class="card-heading"><div><h3>Из чего складывается оптимистичный сценарий</h3><p id="p27-uplift-note"></p></div></div>
+          <div class="p27-legend" id="p27-uplift-legend"></div>
+          <div id="p27-uplift" class="chart p27-chart-small" role="img" aria-label="Вклад доработок в оптимистичный сценарий"></div>
+        </article>
+        <article class="chart-card">
+          <div class="card-heading"><div><h3>Сезонность</h3><p id="p27-season-note"></p></div></div>
+          <div class="p27-legend" id="p27-season-legend"></div>
+          <div id="p27-season" class="chart p27-chart-small" role="img" aria-label="Индексы сезонности"></div>
+        </article>
+      </div>
+
+      <article class="chart-card p27-white">
+        <div class="card-heading"><div><h3 id="p27-hist-title">Факт и план Power BI для проверки</h3><p>Выгрузка Power BI 11.11.2026, данные по 10.11.2026. «В т. ч. фид» — лиды с utm_source yandex-feed / ya-feed внутри SEO.</p></div>
+          <button class="rec-csv-button" type="button" data-csv="history">CSV</button></div>
+        <div class="table-wrap compact"><table class="p27-table" id="p27-table-history"></table></div>
+      </article>
+
+      <article class="chart-card p27-white">
+        <div class="card-heading"><div><h3 id="p27-ws-title">Спрос в тематике: Wordstat</h3><p>Показы по фразе без операторов, вся Россия, январь — сентябрь каждого года (октябрь 2026 в API ещё не появился). Yandex Cloud Search API, выгрузка 11.11.2026.</p></div></div>
+        <div class="table-wrap compact"><table class="p27-table" id="p27-table-ws"></table></div>
+      </article>
+    </section>
 
     <article class="chart-card p27-method">
       <div class="card-heading"><div><h3>Как построен план</h3></div></div>
@@ -121,6 +134,6 @@
   </main>
   <div id="p27-tooltip" class="tooltip" role="tooltip"></div>
   <footer><span>SEO-аналитика Skillbox · план SF/CD</span><span id="p27-generated"></span></footer>
-  <script src="plan-2027.js?v=20261111-1" defer></script>
+  <script src="plan-2027.js?v=20261111-3" defer></script>
 </body>
 </html>
