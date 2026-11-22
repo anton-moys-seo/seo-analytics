@@ -13,7 +13,9 @@
   };
   const $ = (sel) => document.querySelector(sel);
   const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
-  const FAIL_MSG = 'Данные мониторинга метатегов пока не опубликованы: файл recovery.json не найден. Разделы «Лиды» и «Медиатрафик» работают в обычном режиме.';
+  const FAIL_MSG = 'Не удалось загрузить данные мониторинга метатегов. Другие разделы работают независимо. Повторите загрузку файла.';
+
+  function availability(phase) { sectionStatus('recovery', phase, init); }
 
   function isoShift(iso, days) {
     const dt = new Date(`${iso}T00:00:00Z`);
@@ -84,6 +86,28 @@
     return (value > 0 ? '+' : '') + pctf.format(value);
   }
 
+  function renderObservation() {
+    let box = $('#rec-observation');
+    if (!box) {
+      box = document.createElement('article'); box.id = 'rec-observation';
+      box.className = 'observation section-observation';
+      $('#rec-kpis').before(box);
+    }
+    if (rec.failed) { box.textContent = FAIL_MSG; return; }
+    const { target, label } = selection(), w = rec.windows;
+    const values = engineSeries(target, rec.engineId);
+    const pre = windowStats(values, w.pre), post = windowStats(values, w.post);
+    const range = (days) => days.length ? formatPeriod(days[0], days[days.length - 1]) : 'нет дней';
+    const headline = !pre || !post ? 'Парное сравнение недоступно' : post.mean > pre.mean
+      ? 'Средние дневные визиты после выше' : post.mean < pre.mean ? 'Средние дневные визиты после ниже' : 'Средние дневные визиты не изменились';
+    const full = pre && post && pre.days === w.pre.length && post.days === w.post.length && pre.days === post.days && pre.days === 7;
+    const evidence = (stats) => stats ? `${formatNumber(stats.mean)} в день (${formatInt(stats.sum)} / ${stats.days} дн.)` : 'нет измерений';
+    box.innerHTML = `<span class="observation-label">${esc(label)} · ${esc(engineLabel())}</span><h3>${headline}${pre && post && !full ? ' <span class="observation-caveat">окна неполные</span>' : ''}</h3>`
+      + `<p>До: ${range(w.pre)} — ${evidence(pre)}; после: ${range(w.post)} — ${evidence(post)}.</p>`
+      + `<p>${full ? 'Полные семидневные окна.' : 'Неполные окна: длины и доступные измерения указаны выше.'} ${w.change ? `${formatDate(w.change)} исключён.` : 'Дата изменения не указана.'} Окна не зависят от периода графика ${formatPeriod(rec.from, rec.to)}. Причинность не установлена.</p>`
+      + '<button type="button" class="observation-check" data-reveal="rec-pages-table">Проверить по страницам</button> · <button type="button" class="observation-check" data-reveal="rec-method-list">Методика</button>';
+  }
+
   function renderKpis() {
     const box = $('#rec-kpis');
     if (rec.failed) { box.innerHTML = `<div class="empty">${FAIL_MSG}</div>`; return; }
@@ -126,106 +150,17 @@
     return { 'line-primary': 'seo', 'rec-line-google': 'rec-google', 'line-black': 'rec-yandex' }[className] || 'seo';
   }
 
-  function renderRecChart(container, dates, series, options = {}) {
-    if (!container || !dates.length) return;
-    const width = options.width || 1200, height = options.height || 430;
-    const margin = { top: 34, right: 28, bottom: 54, left: 76 };
-    const innerW = width - margin.left - margin.right;
-    const innerH = height - margin.top - margin.bottom;
-    const allValues = series.flatMap((item) => item.values.filter((v) => v !== null && v !== undefined));
-    if (!allValues.length) {
-      container.innerHTML = '<div class="empty">Нет данных для выбранного среза.</div>';
-      return;
-    }
-    const scale = niceScale(options.maximum ?? Math.max(...allValues));
-    const x = (i) => margin.left + (dates.length === 1 ? innerW / 2 : i * innerW / (dates.length - 1));
-    const y = (v) => margin.top + innerH - (v / scale.max) * innerH;
-    const change = rec.windows.change;
-    const changeKey = change ? groupDate(change, rec.grain) : null;
-    const changeIndex = changeKey && rec.from <= change && change <= rec.to ? dates.indexOf(changeKey) : -1;
-
-    let svg = `<svg viewBox="0 0 ${width} ${height}" aria-hidden="true">`;
-    for (let tick = 0; tick <= Math.round(scale.max / scale.step); tick++) {
-      const value = scale.step * tick;
-      const yy = y(value);
-      svg += `<line class="grid-line" x1="${margin.left}" y1="${yy}" x2="${width - margin.right}" y2="${yy}"></line>`;
-      svg += `<text class="axis-label" x="${margin.left - 12}" y="${yy + 4}" text-anchor="end">${esc(formatCompact(value))}</text>`;
-    }
-    svg += `<line class="axis-line" x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + innerH}"></line>`;
-    svg += `<line class="axis-line" x1="${margin.left}" y1="${margin.top + innerH}" x2="${width - margin.right}" y2="${margin.top + innerH}"></line>`;
-    const desiredTicks = options.ticks || (window.innerWidth < 700 ? 5 : 9);
-    const tickStep = Math.max(1, Math.ceil((dates.length - 1) / (desiredTicks - 1)));
-    const tickIndexes = [];
-    for (let i = 0; i < dates.length; i += tickStep) tickIndexes.push(i);
-    if (tickIndexes[tickIndexes.length - 1] !== dates.length - 1) {
-      if (tickIndexes.length > 1 && dates.length - 1 - tickIndexes[tickIndexes.length - 1] < tickStep * 0.65) tickIndexes.pop();
-      tickIndexes.push(dates.length - 1);
-    }
-    tickIndexes.forEach((index) => {
-      const xx = x(index);
-      svg += `<line class="axis-line" x1="${xx}" y1="${margin.top + innerH}" x2="${xx}" y2="${margin.top + innerH + 6}"></line>`;
-      svg += `<text class="axis-label" x="${xx}" y="${height - 20}" text-anchor="middle">${esc(formatDate(dates[index]).slice(0, 5))}</text>`;
-    });
-    if (changeIndex >= 0) {
-      const cx = x(changeIndex);
-      const lx = Math.max(margin.left + 55, Math.min(cx, width - margin.right - 55));
-      svg += `<line class="rec-change-line" x1="${cx}" y1="${margin.top - 8}" x2="${cx}" y2="${margin.top + innerH}"></line>`;
-      svg += `<text class="rec-change-label" x="${lx}" y="${margin.top - 14}" text-anchor="middle">Метатеги ${esc(formatDate(change).slice(0, 5))}</text>`;
-    }
-    series.forEach((item) => {
-      let path = '', drawing = false;
-      item.values.forEach((value, index) => {
-        if (value === null || value === undefined) { drawing = false; return; }
-        path += `${drawing ? 'L' : 'M'}${x(index).toFixed(2)},${y(value).toFixed(2)} `;
-        drawing = true;
-      });
-      svg += `<path class="${item.className}" d="${path.trim()}"></path>`;
-      if (dates.length === 1 && item.values[0] !== null && item.values[0] !== undefined) {
-        const pointClass = item.className.includes('primary') ? 'point-primary' : 'point-black';
-        svg += `<circle class="rec-single-point ${pointClass}" r="5" cx="${x(0)}" cy="${y(item.values[0])}"></circle>`;
-      }
-    });
-    svg += `<line class="hover-line" id="${container.id}-hover" x1="0" y1="${margin.top}" x2="0" y2="${margin.top + innerH}" visibility="hidden"></line>`;
-    series.forEach((item, seriesIndex) => {
-      svg += `<circle id="${container.id}-point-${seriesIndex}" class="${item.className.includes('primary') ? 'point-primary' : 'point-black'}" r="5" cx="0" cy="0" visibility="hidden"></circle>`;
-    });
-    svg += `<rect class="hit-area" x="${margin.left}" y="${margin.top}" width="${innerW}" height="${innerH}"></rect></svg>`;
-    container.innerHTML = svg;
-
-    const chartSvg = container.querySelector('svg');
-    const hit = container.querySelector('.hit-area');
-    const hover = container.querySelector(`#${container.id}-hover`);
-    const tooltip = $('#tooltip');
-    hit.addEventListener('mousemove', (event) => {
-      const rect = chartSvg.getBoundingClientRect();
-      const svgX = (event.clientX - rect.left) * width / rect.width;
-      const index = Math.max(0, Math.min(dates.length - 1, Math.round((svgX - margin.left) * (dates.length - 1) / innerW)));
-      const xx = x(index);
-      hover.setAttribute('x1', xx); hover.setAttribute('x2', xx); hover.setAttribute('visibility', 'visible');
-      let content = `<strong>${formatDate(dates[index])}</strong>`;
-      series.forEach((item, seriesIndex) => {
-        const value = item.values[index];
-        const point = container.querySelector(`#${container.id}-point-${seriesIndex}`);
-        if (value === null || value === undefined) {
-          point.setAttribute('visibility', 'hidden');
-        } else {
-          point.setAttribute('cx', xx); point.setAttribute('cy', y(value)); point.setAttribute('visibility', 'visible');
-        }
-        content += `<br>${esc(item.name)}: ${value === null || value === undefined ? '—' : formatNumber(value)}`;
-      });
-      if (index === changeIndex) {
-        content += `<br>${formatDate(change)} — метатеги изменены${rec.grain === 'day' ? '' : ' (в этом периоде)'}`;
-      }
-      tooltip.innerHTML = content;
-      tooltip.classList.add('visible');
-      tooltip.style.left = `${Math.min(window.innerWidth - 280, event.clientX + 16)}px`;
-      tooltip.style.top = `${Math.max(8, event.clientY - 24)}px`;
-    });
-    hit.addEventListener('mouseleave', () => {
-      hover.setAttribute('visibility', 'hidden');
-      series.forEach((_, index) => container.querySelector(`#${container.id}-point-${index}`).setAttribute('visibility', 'hidden'));
-      tooltip.classList.remove('visible');
-    });
+  function chartOptions(dates, maximum) {
+    const change = rec.windows.change, key = change ? groupDate(change, rec.grain) : null;
+    const visible = change && rec.from <= change && change <= rec.to && dates.includes(key);
+    return {
+      maximum, axisUnit: `Визиты · ${granularityLabel(rec.grain)}`,
+      events: visible ? [{ key, label: `Метатеги ${formatDate(change).slice(0, 5)}` }] : [],
+      windows: rec.grain === 'day' ? ['pre', 'post'].flatMap(side => rec.windows[side].map(day => ({
+        from: day, to: day, label: '', className: side === 'post' ? 'window-after' : 'window-before'
+      }))) : [],
+      tooltipExtra: i => visible && dates[i] === key ? `<br>${formatDate(change)} — изменение метатегов когорты${rec.grain === 'day' ? '' : ' (внутри корзины)'}` : '',
+    };
   }
 
   function renderChart() {
@@ -238,7 +173,7 @@
     }
     const series = chartSeries();
     const chart = aggregateRange(rec.data.dates, series, rec.from, rec.to, rec.grain);
-    renderRecChart(container, chart.dates, chart.series);
+    renderLineChart(container, chart.dates, chart.series, chartOptions(chart.dates));
     const change = rec.windows.change;
     title.textContent = `${engineLabel()}: визиты`;
     const eventVisible = change && rec.from <= change && change <= rec.to;
@@ -303,7 +238,7 @@
     for (const key of ['grown', 'notgrown']) {
       const chart = charts[key], container = $(`#rec-${key}-chart`);
       if (!groups[key].length) container.innerHTML = '<div class="empty">В этой группе нет страниц.</div>';
-      else renderRecChart(container, chart.dates, chart.series, { width: window.innerWidth < 640 ? 360 : 640, height: 360, ticks: 5, maximum });
+      else renderLineChart(container, chart.dates, chart.series, { ...chartOptions(chart.dates, maximum), axisUnit: 'Визиты · общая шкала двух групп' });
     }
     note.textContent = `Обе группы — из всех ${total} страниц, независимо от выбора отдельной страницы выше. На графиках — сумма визитов, не число страниц; шкала общая. Состав групп фиксирован для всей линии по указанному сравнению и меняется при смене системы или обновлении данных, но не при выборе периода графика. Недостаточно данных: ${groups.unclassified.length} из ${total}. ${w.change && rec.from <= w.change && w.change <= rec.to ? 'Линия отмечает смену метатегов; неделя или месяц могут включать дни до и после.' : 'Дата изменения вне периода графиков.'} Рост — наблюдаемая динамика, не доказательство эффекта метатегов или статистической значимости.`;
   }
@@ -345,6 +280,7 @@
     document.querySelectorAll('#rec-pages-head .th-sort').forEach((btn) => {
       btn.classList.toggle('sorted-asc', btn.dataset.sort === rec.sortKey && rec.sortDir === 'asc');
       btn.classList.toggle('sorted-desc', btn.dataset.sort === rec.sortKey && rec.sortDir === 'desc');
+      btn.closest('th').setAttribute('aria-sort', btn.dataset.sort === rec.sortKey ? rec.sortDir === 'asc' ? 'ascending' : 'descending' : 'none');
     });
     if (rec.failed) {
       body.innerHTML = ''; info.textContent = ''; prev.disabled = true; next.disabled = true;
@@ -455,7 +391,7 @@
     const params = new URLSearchParams();
     params.set('view', 'recovery');
     if (!rec.loaded) {
-      history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
+      (window.DashboardUrl?.replace || history.replaceState.bind(history))(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
       return;
     }
     params.set('page', String(rec.pageId));
@@ -465,7 +401,10 @@
     params.set('to', rec.to);
     if (rec.compare) params.set('compare', '1');
     if (rec.tableGroup !== 'all') params.set('group', rec.tableGroup);
-    history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
+    if (rec.sortKey !== 'period') params.set('sort', rec.sortKey);
+    if (rec.sortDir !== 'desc') params.set('dir', rec.sortDir);
+    if (rec.tablePage) params.set('tablePage', String(rec.tablePage));
+    (window.DashboardUrl?.replace || history.replaceState.bind(history))(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
   }
 
   function downloadCsv() {
@@ -495,7 +434,9 @@
   function renderAll() {
     if (!rec.loaded && !rec.failed) return;
     if (rec.loaded) {
+      const requested = [rec.from, rec.to];
       [rec.from, rec.to] = normalizedPeriod(rec.data.dates, rec.from, rec.to);
+      notifyPeriod('recovery', requested, [rec.from, rec.to]);
       setDateInputs('rec', rec.data.dates, rec.from, rec.to);
       setDateInputs('rec-groups', rec.data.dates, rec.from, rec.to);
       $('#rec-granularity').value = rec.grain;
@@ -510,7 +451,7 @@
       if (compareControl.hidden) rec.compare = false;
       $('#rec-compare').checked = rec.compare;
     }
-    renderUrlLine(); renderKpis(); renderChart(); renderGrowthGroups(); renderEngineTable(); renderPagesTable(); renderMethod();
+    renderObservation(); renderUrlLine(); renderKpis(); renderChart(); renderGrowthGroups(); renderEngineTable(); renderPagesTable(); renderMethod();
   }
 
   function setupControls() {
@@ -573,15 +514,34 @@
         const key = btn.dataset.sort;
         if (rec.sortKey === key) rec.sortDir = rec.sortDir === 'asc' ? 'desc' : 'asc';
         else { rec.sortKey = key; rec.sortDir = key === 'path' ? 'asc' : 'desc'; }
-        renderPagesTable();
+        renderPagesTable(); updateRecoveryUrl();
       });
     });
-    $('#rec-page-prev').addEventListener('click', () => { rec.tablePage -= 1; renderPagesTable(); });
-    $('#rec-page-next').addEventListener('click', () => { rec.tablePage += 1; renderPagesTable(); });
+    $('#rec-page-prev').addEventListener('click', () => { rec.tablePage -= 1; renderPagesTable(); updateRecoveryUrl(); });
+    $('#rec-page-next').addEventListener('click', () => { rec.tablePage += 1; renderPagesTable(); updateRecoveryUrl(); });
+  }
+
+  function restoreUrl(params = new URLSearchParams(location.search)) {
+    if (!rec.loaded) return;
+    rec.compare = params.get('compare') === '1';
+    rec.tableGroup = ['grown', 'notgrown', 'unclassified'].includes(params.get('group')) ? params.get('group') : 'all';
+    rec.sortKey = ['path', 'period', 'pre', 'post', 'delta'].includes(params.get('sort')) ? params.get('sort') : 'period';
+    rec.sortDir = params.get('dir') === 'asc' ? 'asc' : 'desc';
+    rec.tablePage = Math.max(0, parseInt(params.get('tablePage'), 10) || 0);
+    rec.pageId = rec.data.pages.some(p => String(p.id) === params.get('page')) ? params.get('page') : 'all';
+    rec.engineId = rec.data.engines.some(e => String(e.id) === params.get('engine')) ? params.get('engine') : 'seo';
+    rec.grain = ['day', 'week', 'month'].includes(params.get('grain')) ? params.get('grain') : 'day';
+    rec.from = snapDate(params.get('from')) || (rec.data.dates[0] > '2026-08-01' ? rec.data.dates[0] : '2026-08-01');
+    rec.to = snapDate(params.get('to')) || rec.data.dates[rec.data.dates.length - 1];
+    rec.pageSearch = $('#rec-page-search').value;
+    rec.tableSearch = $('#rec-pages-search').value;
+    renderAll();
   }
 
   async function init() {
     const initialParams = new URLSearchParams(location.search);
+    rec.failed = false;
+    availability('loading');
     try {
       const data = await window.loadJSON('recovery.json');
       if (!data || !Array.isArray(data.dates) || !data.dates.length || !Array.isArray(data.pages) || !data.total) {
@@ -606,17 +566,22 @@
       if (['day', 'week', 'month'].includes(grainParam)) rec.grain = grainParam;
       rec.from = snapDate(params.get('from')) || rec.from;
       rec.to = snapDate(params.get('to')) || rec.to;
-      setupControls();
+      rec.sortKey = ['path', 'period', 'pre', 'post', 'delta'].includes(params.get('sort')) ? params.get('sort') : 'period';
+      rec.sortDir = params.get('dir') === 'asc' ? 'asc' : 'desc';
+      rec.tablePage = Math.max(0, parseInt(params.get('tablePage'), 10) || 0);
+      if (!rec.controlsReady) { setupControls(); rec.controlsReady = true; }
+      availability('ready');
       if (typeof state !== 'undefined' && state.view === 'recovery') {
         renderAll();
         updateRecoveryUrl();
       }
     } catch (error) {
       rec.failed = true;
-      renderAll();
+      if (!['NO_KEY', 'BAD_KEY'].includes(error?.message)) availability('error');
     }
   }
 
+  window.restoreRecoveryUrl = restoreUrl;
   window.renderRecovery = renderAll;
   window.updateRecoveryUrl = updateRecoveryUrl;
   window.initRecovery = init;

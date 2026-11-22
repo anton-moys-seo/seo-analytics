@@ -19,8 +19,14 @@ const monthNames = ['Январь','Февраль','Март','Апрель','�
 const SITE_KEY_TEXT = location.hash.replace(/^#/, '').trim() || null;
 
 function showLockScreen(message) {
-  document.querySelector('main').innerHTML = `<div class="empty">${message}</div>`;
-  document.title = 'Отчёт: требуется ключ доступа';
+  const wrong = /неверен/.test(message);
+  document.querySelector('main').innerHTML = `<div class="empty lock-screen" role="region" aria-labelledby="lock-title" tabindex="-1"><h2 id="lock-title">${wrong ? 'Ключ не подошёл' : 'Нужен ключ доступа'}</h2><p>${message}</p><p>${wrong
+    ? 'Проверьте, что ссылка скопирована целиком, вместе с частью после «#». Если не помогло, запросите новую ссылку у владельца отчёта.'
+    : 'Откройте полную ссылку, которую вам присылали. Если её нет, запросите ссылку у владельца отчёта.'}</p></div>`;
+  document.querySelector('.ux-fresh-text')?.replaceChildren(document.createTextNode('Данные недоступны'));
+  document.title = wrong ? 'Отчёт: ключ не подошёл' : 'Отчёт: требуется ключ доступа';
+  document.querySelector('main').setAttribute('aria-busy', 'false');
+  document.querySelector('.lock-screen').focus({ preventScroll: true });
 }
 
 function b64urlBytes(text) {
@@ -115,6 +121,41 @@ function normalizedPeriod(dates, from, to) {
   const safeTo = to && dates.includes(to) ? to : max;
   return safeFrom <= safeTo ? [safeFrom, safeTo] : [safeTo, safeFrom];
 }
+function sectionStatus(sectionId, phase, retry) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  let status = section.querySelector('.section-availability');
+  if (!status) {
+    status = document.createElement('div'); status.className = 'empty section-availability';
+    status.setAttribute('role', 'status'); section.querySelector('.section-heading').after(status);
+  }
+  section.setAttribute('aria-busy', String(phase === 'loading'));
+  for (const child of section.children) {
+    if (child !== status && !child.classList.contains('section-heading')) child.hidden = phase !== 'ready';
+  }
+  status.hidden = phase === 'ready';
+  if (phase === 'loading') status.textContent = 'Загружаем раздел. Дождитесь данных перед сравнением.';
+  if (phase === 'error') {
+    status.innerHTML = '<p>Не удалось загрузить данные раздела. Другие разделы работают независимо.</p><button type="button" class="rec-csv-button">Повторить загрузку</button>';
+    status.querySelector('button').addEventListener('click', retry, { once: true });
+  }
+}
+
+function notifyPeriod(sectionId, requested, actual) {
+  const section = document.getElementById(sectionId);
+  if (!section || !actual.every(Boolean) || requested.every(v => v === null || v === undefined)) return;
+  let notice = section.querySelector('.normalized-period');
+  if (requested.some((v, i) => v !== actual[i])) {
+    if (!notice) {
+      notice = document.createElement('p'); notice.className = 'period-status normalized-period';
+      notice.setAttribute('role', 'status'); section.querySelector('.section-heading')?.after(notice);
+    }
+    notice.dataset.period = actual.join('/');
+    notice.textContent = `Даты приведены к доступному периоду: ${formatPeriod(...actual)}. Запрошено: ${requested.map(v => v ? formatDate(v) : 'пустая дата').join('–')}.`;
+  }
+  if (notice) notice.hidden = notice.dataset.period !== actual.join('/');
+}
+
 function kpi(label, value, caption = '', primary = false, visual = '', modifier = '') {
   return `<div class="kpi-card${primary ? ' primary' : ''}${modifier ? ` ${modifier}` : ''}"><span class="kpi-label">${label}</span><div><div class="kpi-value">${value}</div>${caption ? `<div class="kpi-caption">${caption}</div>` : ''}</div>${visual}</div>`;
 }
@@ -125,10 +166,10 @@ function executionTier(execution) {
   return execution >= 1 ? 'good' : execution >= 0.9 ? 'mid' : 'low';
 }
 // Шкала полосы выполнения 0–150 %; отметка — 100 % плана. Значение выше 150 % упирается в край.
-function executionMeter(execution, tier = executionTier(execution)) {
+function executionMeter(execution, tier = executionTier(execution), labelled = false) {
   if (!tier) return '';
   const width = Math.max(0, Math.min(execution, 1.5)) / 1.5 * 100;
-  return `<span class="exec-meter exec-${tier}" aria-hidden="true"><i style="width:${width.toFixed(1)}%"></i><b></b></span>`;
+  return `<span class="exec-meter exec-${tier}" aria-hidden="true"><i style="width:${width.toFixed(1)}%"></i><b></b></span>${labelled ? '<span class="exec-scale" title="Шкала 0–150 %, риска — 100 % плана"><span>0</span><span>100 %</span><span>150<i> %</i></span></span>' : ''}`;
 }
 function shareMeter(share) {
   if (share === null || share === undefined || Number.isNaN(share)) return '';
@@ -156,29 +197,50 @@ function niceScale(maxValue) {
 }
 
 function renderLineChart(container, dates, series, options = {}) {
-  if (!container || !dates.length) return;
-  const width = options.width || 1200, height = 430;
-  const margin = { top: 24, right: 28, bottom: 54, left: 76 };
+  if (!container) return;
+  const hadFocus = container.contains(document.activeElement);
+  $('#tooltip')?.classList.remove('visible');
+  if (!dates.length) {
+    container.innerHTML = '<div class="empty" role="status">Нет дат для выбранного среза. Выберите другой период.</div>';
+    return;
+  }
+  const width = Math.max(280, Math.round(container.getBoundingClientRect().width) || options.width || 1200);
+  const height = width < 600 ? 310 : 340;
+  const margin = { top: options.events?.length ? 70 : 52, right: 24, bottom: 42, left: 58 };
+  const valueFormat = options.valueFormat || formatNumber;
+  const axisFormat = options.axisFormat || (options.valueFormat ? valueFormat : formatCompact);
+  const seriesFormat = (item, value) => (item.format || valueFormat)(value);
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
   const allValues = series.flatMap((item) => item.values.filter((value) => value !== null && value !== undefined));
   if (!allValues.length) {
-    container.innerHTML = '<div class="empty">Нет данных для выбранного среза.</div>';
+    container.innerHTML = '<div class="empty" role="status">Нет данных для выбранного среза. Выберите другой период или объект; пропуски не означают ноль.</div>';
     return;
   }
-  const scale = niceScale(Math.max(...allValues));
+  const scale = niceScale(options.maximum ?? Math.max(...allValues));
   const x = (index) => margin.left + (dates.length === 1 ? innerW / 2 : index * innerW / (dates.length - 1));
   const y = (value) => margin.top + innerH - (value / scale.max) * innerH;
   const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
 
   let svg = `<svg viewBox="0 0 ${width} ${height}" aria-hidden="true">`;
+  if (options.axisUnit) svg += `<text class="axis-label chart-unit" x="${margin.left}" y="15">${esc(options.axisUnit)}</text>`;
+  (options.windows || []).forEach((window) => {
+    const first = dates.findIndex((d) => d >= window.from);
+    let last = dates.length - 1;
+    while (last >= 0 && dates[last] > window.to) last--;
+    if (first < 0 || last < first) return;
+    const half = dates.length > 1 ? innerW / (dates.length - 1) / 2 : innerW / 2;
+    const left = Math.max(margin.left, x(first) - half), right = Math.min(width - margin.right, x(last) + half);
+    svg += `<rect class="chart-window ${window.className || ''}" x="${left}" y="${margin.top}" width="${right-left}" height="${innerH}"></rect>`;
+    if (right - left > 75) svg += `<text class="axis-label window-label" x="${left + 6}" y="32">${esc(window.label)}</text>`;
+  });
   const gradId = `${container.id}-area-grad`;
   svg += `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="area-stop-top"></stop><stop offset="1" class="area-stop-bottom"></stop></linearGradient></defs>`;
   for (let tick = 0; tick <= Math.round(scale.max / scale.step); tick++) {
     const value = scale.step * tick;
     const yy = y(value);
     svg += `<line class="grid-line" x1="${margin.left}" y1="${yy}" x2="${width-margin.right}" y2="${yy}"></line>`;
-    svg += `<text class="axis-label" x="${margin.left-12}" y="${yy+4}" text-anchor="end">${esc(formatCompact(value))}</text>`;
+    svg += `<text class="axis-label" x="${margin.left-12}" y="${yy+4}" text-anchor="end">${esc(axisFormat(value))}</text>`;
   }
   svg += `<line class="axis-line" x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top+innerH}"></line>`;
   svg += `<line class="axis-line" x1="${margin.left}" y1="${margin.top+innerH}" x2="${width-margin.right}" y2="${margin.top+innerH}"></line>`;
@@ -258,18 +320,23 @@ function renderLineChart(container, dates, series, options = {}) {
       drawing = true;
     });
     svg += `<path class="${item.className}" d="${path.trim()}"></path>`;
-    if (dates.length === 1 && item.values[0] !== null && item.values[0] !== undefined) {
-      const pointClass = item.className.includes('primary') ? 'point-primary' : 'point-black';
-      svg += `<circle class="${pointClass}" r="5" cx="${x(0)}" cy="${y(item.values[0])}"></circle>`;
-    }
+    item.values.forEach((value, index) => {
+      const has = (v) => v !== null && v !== undefined;
+      if (has(value) && !has(item.values[index - 1]) && !has(item.values[index + 1])) {
+        const pointClass = item.className.includes('primary') ? 'point-primary' : 'point-black';
+        svg += `<circle class="${pointClass}" r="5" cx="${x(index)}" cy="${y(value)}"></circle>`;
+      }
+    });
   });
 
   (options.events || []).forEach((event) => {
     const eventIndex = dates.indexOf(event.key);
     if (eventIndex < 0) return;
-    const cx = x(eventIndex);
-    svg += `<line class="exp-event-line ${event.className || ''}" x1="${cx}" y1="${margin.top}" x2="${cx}" y2="${margin.top + innerH}"></line>`;
-    const lx = Math.max(margin.left + 44, Math.min(cx, width - margin.right - 44));
+    const cx = x(eventIndex), ex = event.last ? x(Math.max(eventIndex, dates.indexOf(event.last))) : cx, by = margin.top - 6;
+    svg += event.last
+      ? `<path class="exp-event-range" d="M${cx},${by - 4}V${by + 4}M${cx},${by}H${ex}M${ex},${by - 4}V${by + 4}"></path>`
+      : `<line class="exp-event-line ${event.className || ''}" x1="${cx}" y1="${margin.top}" x2="${cx}" y2="${margin.top + innerH}"></line>`;
+    const lx = Math.max(margin.left + 44, Math.min((cx + ex) / 2, width - margin.right - 44));
     svg += `<text class="exp-event-label ${event.className || ''}" x="${lx}" y="${margin.top - 10}" text-anchor="middle">${esc(event.label)}</text>`;
   });
 
@@ -281,7 +348,7 @@ function renderLineChart(container, dates, series, options = {}) {
     if (li >= 0) {
       const lx = x(li), ly = y(lastPrimary.values[li]);
       svg += `<circle class="last-dot" r="6" cx="${lx}" cy="${ly}"></circle>`;
-      const label = esc(formatNumber(lastPrimary.values[li]));
+      const label = esc(valueFormat(lastPrimary.values[li]));
       const lw = label.length * 7.5 + 16;
       const bx = Math.min(lx - lw / 2, width - margin.right - lw + 20), by = Math.max(2, ly - 36);
       svg += `<g class="last-value"><rect x="${bx}" y="${by}" width="${lw}" height="24" rx="12"></rect><text x="${bx + lw / 2}" y="${by + 16}" text-anchor="middle">${label}</text></g>`;
@@ -293,16 +360,29 @@ function renderLineChart(container, dates, series, options = {}) {
     svg += `<circle id="${container.id}-point-${seriesIndex}" class="${item.pointClass || (item.className.includes('primary') ? 'point-primary' : 'point-black')}" r="5" cx="0" cy="0" visibility="hidden"></circle>`;
   });
   svg += `<rect class="hit-area" x="${margin.left}" y="${margin.top}" width="${innerW}" height="${innerH}"></rect></svg>`;
-  container.innerHTML = svg;
-
+  container.innerHTML = svg + `<p class="chart-readout" aria-live="polite" aria-atomic="true"></p><p class="chart-instruction" id="${container.id}-instruction">Точки: ← → · Home / End · Esc. На телефоне коснитесь графика.</p><details class="chart-data"><summary>Показать значения графика · ${dates.length} периодов</summary><div class="table-wrap" tabindex="0" aria-label="Таблица значений графика"><table><caption>${esc(container.getAttribute('aria-label') || 'Значения графика')}</caption><thead><tr><th scope="col">Период</th>${series.map((s) => `<th scope="col">${esc(s.name)}</th>`).join('')}</tr></thead><tbody></tbody></table></div></details>`;
+  const dataDetails = container.querySelector('.chart-data');
+  dataDetails.addEventListener('toggle', () => {
+    const body = dataDetails.querySelector('tbody');
+    if (dataDetails.open && !body.children.length) body.innerHTML = dates.map((date, i) => `<tr><th scope="row">${esc(formatDate(date))}</th>${series.map((s) => `<td>${s.values[i] === null || s.values[i] === undefined ? '—' : esc(seriesFormat(s, s.values[i]))}</td>`).join('')}</tr>`).join('');
+  });
+  container.setAttribute('role', 'group');
   const chartSvg = container.querySelector('svg');
+  chartSvg.setAttribute('tabindex', '0');
+  chartSvg.setAttribute('aria-hidden', 'false');
+  chartSvg.setAttribute('role', 'img');
+  chartSvg.setAttribute('aria-label', `${container.getAttribute('aria-label') || 'График'}. Стрелки влево и вправо выбирают период.`);
+  const readout = container.querySelector('.chart-readout');
   const hit = container.querySelector('.hit-area');
   const hover = container.querySelector(`#${container.id}-hover`);
   const tooltip = $('#tooltip');
-  hit.addEventListener('mousemove', (event) => {
-    const rect = chartSvg.getBoundingClientRect();
-    const svgX = (event.clientX - rect.left) * width / rect.width;
-    const index = Math.max(0, Math.min(dates.length - 1, Math.round((svgX - margin.left) * (dates.length - 1) / innerW)));
+  chartSvg.setAttribute('aria-describedby', `${container.id}-instruction`);
+  let selected = dates.indexOf(container.dataset.selectedDate);
+  if (selected < 0) selected = dates.length - 1;
+  const showPoint = (index, event) => {
+    selected = index;
+    container.dataset.selectedDate = dates[index];
+    if (!event || event.pointerType === 'touch') tooltip.classList.remove('visible');
     const xx = x(index);
     hover.setAttribute('x1', xx); hover.setAttribute('x2', xx); hover.setAttribute('visibility', 'visible');
     let content = `<strong>${formatDate(dates[index])}</strong>`;
@@ -317,7 +397,7 @@ function renderLineChart(container, dates, series, options = {}) {
       }
       if (item.hideNull && (value === null || value === undefined)) return;
       const swatchClass = item.swatch ? `tt-dot ${item.swatch}` : swatch;
-      content += `<br><i class="${swatchClass}"></i>${esc(item.name)}: <b>${value === null || value === undefined ? '—' : formatNumber(value)}</b>`;
+      content += `<br><i class="${swatchClass}"></i>${esc(item.name)}: <b>${value === null || value === undefined ? '—' : seriesFormat(item, value)}</b>`;
     });
     if (options.tooltipExtra) content += options.tooltipExtra(index) || '';
     if (planSeries && factSeries) {
@@ -327,11 +407,37 @@ function renderLineChart(container, dates, series, options = {}) {
         content += `<br><span class="tt-delta ${dv >= 0 ? 'up' : 'down'}">Отклонение: ${dv >= 0 ? '+' : ''}${formatNumber(dv)}</span>`;
       }
     }
-    tooltip.innerHTML = content;
-    tooltip.classList.add('visible');
-    tooltip.style.left = `${Math.min(window.innerWidth - 280, event.clientX + 16)}px`;
-    tooltip.style.top = `${Math.max(8, event.clientY - 24)}px`;
+    const plain = document.createElement('div');
+    plain.innerHTML = content.replace(/<br\s*\/?\s*>/g, ' · ');
+    readout.textContent = plain.textContent;
+    if (event && event.pointerType !== 'touch') {
+      tooltip.innerHTML = content;
+      tooltip.classList.add('visible');
+      tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - 280, event.clientX + 16))}px`;
+      tooltip.style.top = `${Math.max(8, Math.min(event.clientY - 24, window.innerHeight - tooltip.offsetHeight - 8))}px`;
+    }
+  };
+  const pointer = (event) => {
+    const rect = chartSvg.getBoundingClientRect();
+    const svgX = (event.clientX - rect.left) * width / rect.width;
+    showPoint(Math.max(0, Math.min(dates.length - 1, Math.round((svgX - margin.left) * (dates.length - 1) / innerW))), event);
+  };
+  hit.addEventListener('pointermove', pointer);
+  hit.addEventListener('pointerdown', pointer);
+  chartSvg.addEventListener('focus', () => showPoint(selected));
+  chartSvg.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Escape'].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'Escape') {
+      tooltip.classList.remove('visible'); hover.setAttribute('visibility', 'hidden');
+      series.forEach((_, i) => container.querySelector(`#${container.id}-point-${i}`).setAttribute('visibility', 'hidden'));
+      return;
+    }
+    const index = event.key === 'Home' ? 0 : event.key === 'End' ? dates.length - 1 : Math.max(0, Math.min(dates.length - 1, selected + (event.key === 'ArrowLeft' ? -1 : 1)));
+    showPoint(index);
   });
+  readout.textContent = `${formatDate(dates[selected])} · ${series.map((s) => `${s.name}: ${s.values[selected] === null || s.values[selected] === undefined ? '—' : seriesFormat(s, s.values[selected])}`).join(' · ')}`;
+  if (hadFocus) chartSvg.focus({ preventScroll: true });
   hit.addEventListener('mouseleave', () => {
     hover.setAttribute('visibility', 'hidden');
     series.forEach((_, index) => container.querySelector(`#${container.id}-point-${index}`).setAttribute('visibility', 'hidden'));
@@ -423,7 +529,7 @@ function renderLeadSummary() {
       const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
     });
     const execCell = document.createElement('td'); execCell.innerHTML = executionCell(execution); row.appendChild(execCell);
-    attention.push({ id: entity.id, name: entity.name, execution });
+    attention.push({ id: entity.id, name: entity.name, execution, plan, fact });
     const fcCell = document.createElement('td');
     fcCell.innerHTML = forecastCell(entity.fact, entity.dates, entity.id === 'spo' && spoMonth ? spoMonth.total : null);
     row.appendChild(fcCell);
@@ -436,6 +542,12 @@ function renderLeadSummary() {
 }
 
 // Блок «Требует внимания»: те же значения выполнения и пороги, что в сводке месяца, без новых расчётов.
+function attentionHref(id) {
+  const url = new URL(location.href);
+  for (const [key, value] of [['view', 'leads'], ['lead', id], ['from', `${state.data.meta.asOf.slice(0, 7)}-01`], ['to', state.data.meta.asOf]]) url.searchParams.set(key, value);
+  url.searchParams.delete('page');
+  return url.href;
+}
 function renderLeadAttention(items, period) {
   const box = $('#lead-attention');
   if (!box) return;
@@ -446,7 +558,7 @@ function renderLeadAttention(items, period) {
   box.hidden = !items.length;
   box.innerHTML = `<div class="attention-head"><p class="attention-title">${!planned.length ? 'План на период не задан' : lagging.length ? 'Требует внимания' : 'Все проекты с планом в плане'}</p>`
     + `<p class="attention-note">Сводка за ${period}: ${planned.length ? `план выполняют ${onTrack} из ${planned.length}${noPlan ? ` · без полного плана: ${noPlan}` : ''}. Нажмите на проект, чтобы открыть его график.` : `нет плановых данных по ${items.length} ${items.length === 1 ? 'проекту' : 'проектам'}.`}</p></div>`
-    + (lagging.length ? `<div class="attention-list">${lagging.map((item) => `<button type="button" class="attention-chip exec-${executionTier(item.execution)}" data-lead="${item.id}"><span>${item.name}</span><b>${pctf.format(item.execution)}</b></button>`).join('')}</div>` : '');
+    + (lagging.length ? `<div class="attention-list">${lagging.map((item) => `<a class="attention-chip exec-${executionTier(item.execution)}" data-lead="${item.id}" href="${attentionHref(item.id)}"><span class="attention-chip-main"><span>${item.name}</span><b>${pctf.format(item.execution)}</b></span><span class="attention-chip-sub">Факт ${formatInt(item.fact)} из ${formatNumber(item.plan)}</span></a>`).join('')}</div>` : '');
 }
 
 function leadPageGroup(entity) {
@@ -471,7 +583,15 @@ function renderLead() {
   const entity = state.data.leads.entities.find((item) => item.id === state.leadId);
   const group = leadPageGroup(entity);
   populateLeadPageSelect(entity);
+  const requestedPeriod = [state.leadFrom, state.leadTo];
   [state.leadFrom, state.leadTo] = normalizedPeriod(entity.dates, state.leadFrom, state.leadTo);
+  const normalized = requestedPeriod.some((value, i) => value && value !== [state.leadFrom, state.leadTo][i]);
+  const periodNotice = $('#lead-period-status');
+  if (normalized) {
+    periodNotice.dataset.period = [state.leadFrom, state.leadTo].join('/');
+    periodNotice.textContent = `Запрошенные даты вне доступного ряда или в обратном порядке. Показан доступный период: ${formatPeriod(state.leadFrom, state.leadTo)}.`;
+  }
+  periodNotice.hidden = periodNotice.dataset.period !== [state.leadFrom, state.leadTo].join('/');
   setDateInputs('lead', entity.dates, state.leadFrom, state.leadTo);
   $('#lead-granularity').value = state.leadGranularity;
   const idx = rangeIndexes(entity.dates, state.leadFrom, state.leadTo);
@@ -493,16 +613,23 @@ function renderLead() {
   const factSpark = sparkline(chart.series[chart.series.length - 1].values);
   const period = formatPeriod(state.leadFrom, state.leadTo);
   const tier = executionTier(execution);
+  $('#lead-context').textContent = `${entity.name} · ${period} · ${group ? group.name : 'Все страницы'} · ${entity.scope}`;
+  const comparison = $('#lead-observation');
+  comparison.innerHTML = group || plan === null || !plan
+    ? `<p>${group ? 'Для этой группы страниц отдельного плана нет. Ниже сохранены показатели к плану всего проекта.' : 'Сравнение недоступно: план не задан на все дни или равен нулю.'}</p>`
+    : `<h3>${deviation === 0 ? 'Факт совпадает с планом' : `Факт ${deviation < 0 ? 'ниже' : 'выше'} плана за выбранные дни`}</h3>`;
+  const freshness = `Срез данных: ${formatDate(state.data.meta.asOf)}.`;
+  $('#lead-reading').textContent = `${group ? 'Показан только факт группы; отдельного плана для неё нет.' : 'Как читать: синяя линия — факт, чёрный пунктир — план. Розовая зона между ними — ниже плана, мятная — выше. Шкала от нуля.'} ${freshness} ${state.leadGranularity !== 'day' ? 'Крайние недели или месяцы могут содержать не все дни: суммируются только выбранные даты.' : ''}`;
   $('#lead-kpis').innerHTML = group ? [
     kpi(`Факт за период: ${group.name}`, formatInt(groupFact), period, true, factSpark),
     kpi('Доля от проекта', share === null ? '—' : pctf.format(share), 'Факт группы к факту всего проекта', false, shareMeter(share)),
     kpi('План проекта за период', formatNumber(plan), plan === null ? 'План за период недоступен: есть дни без плана' : `${period} · страница плана не разделяет`),
-    kpi('Выполнение к плану проекта', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана на все дни периода' : 'Факт группы к плану всего проекта', false, executionMeter(execution)),
+    kpi('Выполнение к плану проекта', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана на все дни периода' : 'Факт группы к плану всего проекта', false, executionMeter(execution, undefined, true)),
   ].join('') : [
     kpi('Факт за период', formatInt(fact), period, true, factSpark),
     kpi('План за период', formatNumber(plan), plan === null ? 'План за период недоступен: есть дни без плана' : period),
     kpi('Отклонение', formatNumber(deviation), plan === null ? 'Недоступно без плана' : 'Факт минус план', false, '', deviation === null ? '' : deviation >= 0 ? 'kpi-delta-up' : 'kpi-delta-down'),
-    kpi('Выполнение', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана' : 'Факт к плану', false, executionMeter(execution, tier), tier ? `kpi-tier-${tier}` : ''),
+    kpi('Выполнение', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана' : 'Факт к плану', false, executionMeter(execution, tier, true), tier ? `kpi-tier-${tier}` : ''),
   ].join('');
   $('#lead-chart-title').textContent = `${entity.name}: ${group ? 'факт по страницам' : 'план и факт лидов'}`;
   $('#lead-chart-note').textContent = `${entity.scope} · ${period} · ${granularityLabel(state.leadGranularity)}${group ? ` · страницы: ${group.name} · план по страницам не детализирован и не показывается` : plan === null ? ' · есть дни без плана; сравнение за весь период недоступно' : ''}`;
@@ -530,7 +657,7 @@ function renderLead() {
   const legendPlan = $('#lead-legend-plan');
   if (legendPlan) legendPlan.hidden = Boolean(group);
   document.querySelectorAll('[data-gap-legend="lead"]').forEach((item) => { item.hidden = Boolean(group); });
-  renderLineChart($('#lead-chart'), chart.dates, chart.series, { width: window.innerWidth < 640 ? 360 : 1200, gap: !group });
+  renderLineChart($('#lead-chart'), chart.dates, chart.series, { gap: !group, axisUnit: `Лиды · ${granularityLabel(state.leadGranularity)}` });
   renderLeadPages(entity, idx);
   if (blogGroupOf(entity) && state.blog === undefined) {
     ensureBlogData().then(() => { if (state.leadId === entity.id && state.view === 'leads') renderLeadBlog(entity); });
@@ -617,7 +744,17 @@ function renderLeadBlog(entity) {
 function renderDirection() {
   const direction = state.data.leads.coreDirections.find((item) => item.name === state.direction);
   const dates = state.data.leads.entities[0].dates;
+  const requestedPeriod = [state.directionFrom, state.directionTo];
   [state.directionFrom, state.directionTo] = normalizedPeriod(dates, state.directionFrom, state.directionTo);
+  const card = $('#direction-chart').closest('.direction-card');
+  if (!card.id) card.id = 'direction-period-context';
+  if (!card.querySelector('.normalized-period')) {
+    const notice = document.createElement('p');
+    notice.id = 'direction-period-status'; notice.className = 'period-status normalized-period';
+    notice.hidden = true; notice.setAttribute('role', 'status');
+    card.querySelector('.card-heading').before(notice);
+  }
+  notifyPeriod(card.id, requestedPeriod, [state.directionFrom, state.directionTo]);
   setDateInputs('direction', dates, state.directionFrom, state.directionTo);
   $('#direction-granularity').value = state.directionGranularity;
   const idx = rangeIndexes(dates, state.directionFrom, state.directionTo);
@@ -731,9 +868,40 @@ function forecastRow(row, total) {
     + `<td>${forecastCoefCell(row)}</td></tr>`;
 }
 
+let forecastRequest = null;
+function ensureForecast(retry = false) {
+  if (forecastRequest) return forecastRequest;
+  if (!retry && state.forecast !== undefined) return Promise.resolve(state.forecast);
+  const focusResult = retry && Boolean(document.activeElement?.closest('#forecast .section-availability'));
+  state.forecast = undefined;
+  if (state.view === 'forecast') renderForecast();
+  forecastRequest = loadJSON('forecast.json')
+    .then((data) => { state.forecast = data; return data; })
+    .catch(() => { state.forecast = null; return null; })
+    .finally(() => {
+      forecastRequest = null;
+      if (state.view === 'forecast' && document.getElementById('forecast')) {
+        renderForecast();
+        if (focusResult && document.activeElement === document.body) {
+          const target = $('#forecast .section-availability:not([hidden]) button') || $('#forecast-heading');
+          if (target && target.tagName !== 'BUTTON') target.setAttribute('tabindex', '-1');
+          target?.focus({ preventScroll: true });
+        }
+      }
+    });
+  return forecastRequest;
+}
+
 function renderForecast() {
   const fc = state.forecast;
-  if (!fc) return;
+  if (!document.getElementById('forecast')) return;
+  if (!fc) {
+    window.Round3?.forecast(null);
+    sectionStatus('forecast', fc === undefined ? 'loading' : 'error', () => ensureForecast(true));
+    return;
+  }
+  sectionStatus('forecast', 'ready');
+  window.Round3?.forecast(fc);
   const meta = fc.meta;
   const months = meta.months || { m3: 'Сентябрь', m2: 'Октябрь', cur: 'Ноябрь', next: 'Декабрь' };
   const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
@@ -753,7 +921,10 @@ function renderForecast() {
       setText('forecast-warning-text', '');
     }
   }
+  const observation = $('#forecast-observation');
+  observation.innerHTML = `<span class="observation-label">Основания сценариев · срез ${formatDate(meta.asOf)}</span><h3>Итог ${fcGen(months.cur)} включает оценку, ${months.next.toLowerCase()} — сценарии</h3><p>Тренд продолжает текущую ставку, сезонность учитывает календарь, спрос покрывает только core. Это расчётные условия, не установленные причины будущего изменения.</p>`;
   if (meta.status === 'awaiting-november') {
+    observation.textContent = meta.message;
     $('#forecast-kpis').textContent = meta.message;
     $('#forecast-projects-note').textContent = meta.message;
     $('#forecast-directions-note').textContent = 'Прогноз появится после обновления ноябрьского факта.';
@@ -796,13 +967,26 @@ function currentMediaSeries() {
 }
 
 // Ячейка «SEO к плану»: факт к базе за пересечение строки с выбранным периодом и плановыми днями.
-function mediaPlanCell(sectionName, dates, seoValues, rowFrom, rowTo, start, end) {
+function mediaPlanCell(sectionName, dates, seoValues, rowFrom, rowTo, start, end, scale = null) {
   if (state.mediaId !== 'skillbox-media' || !window.MediaPlan || !MediaPlan.ready()) return '<span class="plan-sub">—</span>';
   if (!MediaPlan.has(sectionName)) return '<span class="plan-sub">нет плана</span>';
   const from = rowFrom > start ? rowFrom : start, to = rowTo < end ? rowTo : end;
   const cmp = MediaPlan.compare(sectionName, dates, seoValues, from, to);
   if (!cmp) return '<span class="plan-sub">—</span>';
-  return `<span class="plan-badge ${cmp.status.cls}" title="${cmp.status.label}: факт ${formatInt(cmp.fact)}, база ${formatInt(cmp.base)}, благоприятный ${formatInt(cmp.fav)} (${formatPeriod(cmp.from, cmp.to)})">${MediaPlan.signedPct(cmp.toBase)}</span>`;
+  return `<span class="plan-badge ${cmp.status.cls}" title="${cmp.status.label}: факт ${formatInt(cmp.fact)}, база ${formatInt(cmp.base)}, благоприятный ${formatInt(cmp.fav)} (${formatPeriod(cmp.from, cmp.to)})">${MediaPlan.signedPct(cmp.toBase)}</span>${MediaPlan.meter(cmp.fact, cmp.base, cmp.fav, true, scale)}`;
+}
+
+function mediaTableScale(body, comparisons) {
+  const scale = window.MediaPlan?.comparisonScale(comparisons) ?? null;
+  const id = `${body.id}-scale`;
+  let caption = document.getElementById(id);
+  if (!caption) {
+    caption = document.createElement('p'); caption.id = id; caption.className = 'r3-table-scale';
+    body.closest('.table-wrap').before(caption);
+  }
+  caption.hidden = scale === null;
+  caption.textContent = scale === null ? '' : `Все мини-шкалы этой таблицы: 0…${formatInt(scale)} SEO-визитов. Максимум по факту, базе и благоприятному сценарию за плановые дни каждой строки. Чёрная риска — факт; границы коридора — база и благоприятный. Это не шкала SEO + Direct.`;
+  return scale;
 }
 
 function renderMediaMonthly(dates, seoValues, directValues, start, end) {
@@ -814,6 +998,9 @@ function renderMediaMonthly(dates, seoValues, directValues, start, end) {
     groups.get(key).seo += seoValues[index] || 0;
     groups.get(key).direct += directValues[index] || 0;
   });
+  const comparisons = state.mediaId === 'skillbox-media' && window.MediaPlan?.ready()
+    ? [...groups.keys()].map((key) => MediaPlan.compare(state.mediaSection, dates, seoValues, `${key}-01` > start ? `${key}-01` : start, `${key}-31` < end ? `${key}-31` : end)) : [];
+  const scale = mediaTableScale(body, comparisons);
   groups.forEach((values, key) => {
     const month = Number(key.slice(5, 7));
     const total = values.seo + values.direct;
@@ -822,7 +1009,7 @@ function renderMediaMonthly(dates, seoValues, directValues, start, end) {
       const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
     });
     const planCell = document.createElement('td');
-    planCell.innerHTML = mediaPlanCell(state.mediaSection, dates, seoValues, `${key}-01`, `${key}-31`, start, end);
+    planCell.innerHTML = mediaPlanCell(state.mediaSection, dates, seoValues, `${key}-01`, `${key}-31`, start, end, scale);
     row.appendChild(planCell);
     body.appendChild(row);
   });
@@ -840,13 +1027,15 @@ function renderEditorialSummary(project, start, end) {
     direct: sum(idx.map((i) => section.direct[i])),
   })).sort((a, b) => (b.seo + b.direct) - (a.seo + a.direct));
   const body = $('#editorial-summary'); body.innerHTML = '';
+  const comparisons = window.MediaPlan?.ready() ? ranked.map((s) => MediaPlan.compare(s.name, project.dates, s.seoSeries, start, end)) : [];
+  const scale = mediaTableScale(body, comparisons);
   ranked.forEach((section) => {
     const row = document.createElement('tr');
     [section.name, formatInt(section.seo), formatInt(section.direct)].forEach((value) => {
       const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
     });
     const planCell = document.createElement('td');
-    planCell.innerHTML = mediaPlanCell(section.name, project.dates, section.seoSeries, start, end, start, end);
+    planCell.innerHTML = mediaPlanCell(section.name, project.dates, section.seoSeries, start, end, start, end, scale);
     row.appendChild(planCell);
     body.appendChild(row);
   });
@@ -856,7 +1045,9 @@ function renderEditorialSummary(project, start, end) {
 function renderMedia() {
   const current = currentMediaSeries();
   const { project, label, seo, direct } = current;
+  const requestedPeriod = [state.mediaFrom, state.mediaTo];
   [state.mediaFrom, state.mediaTo] = normalizedPeriod(project.dates, state.mediaFrom, state.mediaTo);
+  notifyPeriod('media', requestedPeriod, [state.mediaFrom, state.mediaTo]);
   setDateInputs('media', project.dates, state.mediaFrom, state.mediaTo);
   $('#media-granularity').value = state.mediaGranularity;
   const idx = rangeIndexes(project.dates, state.mediaFrom, state.mediaTo);
@@ -881,8 +1072,9 @@ function renderMedia() {
     kpi('Доля SEO', total ? pctf.format(seoTotal / total) : '—', 'В сумме SEO и Direct', false, total ? shareMeter(seoTotal / total) : ''),
   ].join('');
   const selectionLabel = project.id === 'skillbox-media' ? `${project.name} · ${label}` : project.name;
+  $('#media-observation').innerHTML = `<span class="observation-label">Общая динамика · ${period}</span><h3>${selectionLabel}</h3><p>SEO и Direct показаны раздельно; сравнение с нормой доступно только за дни с планом. ${state.mediaGranularity === 'day' ? 'Пропуски не заменяются нулём.' : 'Крайние недели и месяцы могут быть неполными; план показываем только для полных корзин.'}</p>`;
   $('#media-chart-note').textContent = `${selectionLabel} · ${project.url} · ${period} · ${granularityLabel(state.mediaGranularity)}`;
-  const chartOptions = { width: window.innerWidth < 640 ? 360 : 1200 };
+  const chartOptions = { width: window.innerWidth < 640 ? 360 : 1200, axisUnit: 'Визиты' };
   if (inPeriod) {
     const [fav, base] = [chart.series[2].values, chart.series[3].values];
     chartOptions.band = { lower: base, upper: fav };
@@ -897,6 +1089,8 @@ function renderMedia() {
   renderMediaMonthly(project.dates, seo, direct, state.mediaFrom, state.mediaTo);
   renderEditorialSummary(project, state.mediaFrom, state.mediaTo);
   if (window.MediaPlan) MediaPlan.render();
+  const planJump = document.querySelector('[data-media-jump="media-plan-card"]');
+  if (planJump) planJump.disabled = $('#media-plan-card').hidden;
 }
 
 function setupMediaControls() {
@@ -912,44 +1106,49 @@ function setupMediaControls() {
   } else {
     sectionControl.hidden = true;
     state.mediaSection = 'Все /media/';
+    if (!$('#media-section').options.length) {
+      const editors = projects.find((item) => item.id === 'skillbox-media')?.sections || [];
+      populateSelect($('#media-section'), ['Все /media/', ...editors.map((item) => item.name)], state.mediaSection);
+    }
   }
 }
 
 function loadUrlState() {
   const params = new URLSearchParams(location.search);
   const grains = ['day', 'week', 'month'];
-  const dateParam = (name) => /^\d{4}-\d{2}-\d{2}$/.test(params.get(name) || '') ? params.get(name) : null;
+  const context = (view) => {
+    if (params.get('view') === view || (view === 'leads' && ['forecast', null].includes(params.get('view')))) return params;
+    const saved = window.DashboardUrl?.readContext(params, view);
+    return saved ? new URLSearchParams(Object.entries(saved).filter(([key, value]) => key !== '_filters' && value !== null)) : new URLSearchParams();
+  };
+  const leads = context('leads'), media = context('media');
+  const dateParam = (source, name) => /^\d{4}-\d{2}-\d{2}$/.test(source.get(name) || '') ? source.get(name) : null;
   if (['leads', 'products-sf-cd', 'media', 'recovery', 'updates', 'updates-all', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
-  if (state.data.leads.entities.some((item) => item.id === params.get('lead'))) state.leadId = params.get('lead');
-  if (params.get('page')) {
+  if (state.data.leads.entities.some((item) => item.id === leads.get('lead'))) state.leadId = leads.get('lead');
+  if (leads.get('page')) {
     const entity = state.data.leads.entities.find((item) => item.id === state.leadId);
-    if (entity && entity.pageGroups && entity.pageGroups.some((g) => g.id === params.get('page'))) state.leadPage = params.get('page');
+    if (entity && entity.pageGroups && entity.pageGroups.some((g) => g.id === leads.get('page'))) state.leadPage = leads.get('page');
   }
-  if (state.data.leads.coreDirections.some((item) => item.name === params.get('direction'))) state.direction = params.get('direction');
-  if (state.data.media.projects.some((item) => item.id === params.get('project'))) state.mediaId = params.get('project');
-  if (params.get('section')) state.mediaSection = params.get('section');
-  if (/^(2026-1[0-2]|q4)$/.test(params.get('plan') || '')) state.planPeriod = params.get('plan');
-  if (['cum', 'day', 'week'].includes(params.get('planView'))) state.planView = params.get('planView');
-  if (grains.includes(params.get('grain'))) {
-    if (state.view === 'media') state.mediaGranularity = params.get('grain');
-    else if (state.view === 'leads') state.leadGranularity = params.get('grain');
-  }
-  if (state.view === 'media') {
-    state.mediaFrom = dateParam('from') || state.mediaFrom;
-    state.mediaTo = dateParam('to') || state.mediaTo;
-  } else if (state.view === 'leads') {
-    state.leadFrom = dateParam('from') || state.leadFrom;
-    state.leadTo = dateParam('to') || state.leadTo;
-  }
-  if (grains.includes(params.get('directionGrain'))) state.directionGranularity = params.get('directionGrain');
-  state.directionFrom = dateParam('directionFrom') || state.directionFrom;
-  state.directionTo = dateParam('directionTo') || state.directionTo;
+  if (state.data.leads.coreDirections.some((item) => item.name === leads.get('direction'))) state.direction = leads.get('direction');
+  if (state.data.media.projects.some((item) => item.id === media.get('project'))) state.mediaId = media.get('project');
+  if (media.get('section')) state.mediaSection = media.get('section');
+  if (/^(2026-1[0-2]|q4)$/.test(media.get('plan') || '')) state.planPeriod = media.get('plan');
+  if (['cum', 'day', 'week'].includes(media.get('planView'))) state.planView = media.get('planView');
+  if (grains.includes(leads.get('grain'))) state.leadGranularity = leads.get('grain');
+  if (grains.includes(media.get('grain'))) state.mediaGranularity = media.get('grain');
+  state.leadFrom = dateParam(leads, 'from') || state.leadFrom;
+  state.leadTo = dateParam(leads, 'to') || state.leadTo;
+  state.mediaFrom = dateParam(media, 'from') || state.mediaFrom;
+  state.mediaTo = dateParam(media, 'to') || state.mediaTo;
+  if (grains.includes(leads.get('directionGrain'))) state.directionGranularity = leads.get('directionGrain');
+  state.directionFrom = dateParam(leads, 'directionFrom') || state.directionFrom;
+  state.directionTo = dateParam(leads, 'directionTo') || state.directionTo;
 }
 
 function updateUrl() {
   if (state.view === 'products-sf-cd') {
     if (window.updateProductsSfCdUrl) window.updateProductsSfCdUrl();
-    else history.replaceState(null, '', `${location.pathname}?view=products-sf-cd${location.hash}`);
+    else (window.DashboardUrl?.replace || history.replaceState.bind(history))(null, '', `${location.pathname}?view=products-sf-cd${location.hash}`);
     return;
   }
   if (state.view === 'updates-all') { if (window.updateUpdatesAllUrl) window.updateUpdatesAllUrl(); return; }
@@ -964,8 +1163,8 @@ function updateUrl() {
     params.set('grain', state.mediaGranularity);
     params.set('from', state.mediaFrom);
     params.set('to', state.mediaTo);
-    if (state.mediaId === 'skillbox-media' && state.planPeriod) params.set('plan', state.planPeriod);
-    if (state.mediaId === 'skillbox-media' && state.planView !== 'cum') params.set('planView', state.planView);
+    if (state.planPeriod) params.set('plan', state.planPeriod);
+    if (state.planView !== 'cum') params.set('planView', state.planView);
   } else {
     params.set('lead', state.leadId);
     if (state.leadPage !== 'all') params.set('page', state.leadPage);
@@ -977,10 +1176,11 @@ function updateUrl() {
     params.set('directionFrom', state.directionFrom);
     params.set('directionTo', state.directionTo);
   }
-  history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
+  (window.DashboardUrl?.replace || history.replaceState.bind(history))(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
 }
 
 function activateView(target, syncUrl = true) {
+  if (syncUrl && target !== state.view) window.DashboardUrl?.navigate(target);
   state.view = target;
   if (state.data?.meta?.asOf) $('#as-of').textContent = `Данные по ${formatDate(state.data.meta.asOf)}`;
   const isMedia = ['media', 'recovery', 'updates', 'updates-all'].includes(target);
@@ -1014,9 +1214,17 @@ function activateView(target, syncUrl = true) {
   else if (target === 'forecast') renderForecast();
   else { renderLead(); renderDirection(); }
   if (syncUrl) updateUrl();
+  window.Round3?.delta();
+  window.DashboardUrl?.restore(target);
 }
 
 function setupTabs() {
+  document.querySelectorAll('[data-media-jump]').forEach((button) => button.addEventListener('click', () => {
+    const target = document.getElementById(button.dataset.mediaJump);
+    if (!target || target.hidden) return;
+    target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }));
   document.querySelectorAll('.tab-button, .nested-tab').forEach((button) => {
     button.addEventListener('click', () => activateView(button.dataset.target));
   });
@@ -1063,12 +1271,7 @@ async function init() {
         .catch(() => { state.yoy = null; })
         .finally(() => { if (state.view === 'leads') { renderLeadSummary(); renderDirectionSummary(); } });
     }
-    if (state.forecast === undefined) {
-      loadJSON('forecast.json')
-        .then((data) => { state.forecast = data; })
-        .catch(() => { state.forecast = null; })
-        .finally(() => { if (state.view === 'forecast') renderForecast(); });
-    }
+    if (state.forecast === undefined) ensureForecast();
     window.addEventListener('resize', () => {
       if (state.view === 'leads') { renderLead(); renderDirection(); }
       else if (state.view === 'media') renderMedia();
@@ -1082,7 +1285,8 @@ async function init() {
     });
     $('#lead-attention').addEventListener('click', (event) => {
       const chip = event.target.closest('[data-lead]');
-      if (!chip) return;
+      if (!chip || event.ctrlKey || event.metaKey || event.shiftKey || event.button) return;
+      event.preventDefault();
       // Drill down into the same monthly all-pages context as the attention summary.
       state.leadPage = 'all';
       state.leadFrom = `${state.data.meta.asOf.slice(0, 7)}-01`;
@@ -1092,6 +1296,7 @@ async function init() {
       select.dispatchEvent(new Event('change', { bubbles: true }));
       select.closest('.chart-card').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     });
+    for (const type of ['pointerdown', 'focusin', 'contextmenu']) $('#lead-attention').addEventListener(type, (event) => { const chip = event.target.closest('a[data-lead]'); if (chip) chip.href = attentionHref(chip.dataset.lead); }, true);
     $('#lead-page').addEventListener('change', (event) => { state.leadPage = event.target.value; renderLead(); updateUrl(); });
     $('#direction-select').addEventListener('change', (event) => { state.direction = event.target.value; renderDirection(); updateUrl(); });
     $('#media-project').addEventListener('change', (event) => { state.mediaId = event.target.value; setupMediaControls(); renderMedia(); updateUrl(); });
@@ -1103,11 +1308,21 @@ async function init() {
     // loadJSON already renders a helpful lock screen for missing/invalid keys.
     // Do not replace it with the raw NO_KEY/BAD_KEY exception text.
     if (!['NO_KEY', 'BAD_KEY'].includes(error.message)) {
-      document.querySelector('main').innerHTML = `<div class="empty">${error.message}</div>`;
+      document.querySelector('main').innerHTML = '<div class="empty lock-screen" role="alert" aria-labelledby="lock-title" tabindex="-1"><h2 id="lock-title">Не удалось загрузить данные</h2><p>Обновите страницу. Если ошибка повторяется, сообщите владельцу отчёта. Данные не загружены; это не означает отсутствие ключа.</p><button type="button" class="observation-check">Обновить страницу</button></div>';
+      document.querySelector('.lock-screen button').addEventListener('click', () => location.reload());
+      document.querySelector('.ux-fresh-text')?.replaceChildren(document.createTextNode('Данные не загружены'));
+      document.querySelector('.lock-screen').focus({ preventScroll: true });
     }
+  } finally {
+    document.querySelector('main')?.setAttribute('aria-busy', 'false');
   }
 }
 
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  $('#tooltip')?.classList.remove('visible');
+  document.querySelectorAll('.chart .hover-line,.chart [id*="-point-"]').forEach((node) => node.setAttribute('visibility', 'hidden'));
+});
 document.addEventListener('DOMContentLoaded', init);
 // Ключ дописали в адрес той же вкладки — единственный способ увидеть данные: перезагрузиться.
 window.addEventListener('hashchange', () => { if (!state.data && location.hash.replace(/^#/, '').trim()) location.reload(); });

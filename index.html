@@ -7,16 +7,18 @@
   <meta name="robots" content="noindex, nofollow, noarchive">
   <title>SEO: лиды и медиатрафик</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261110-1">
-  <link rel="stylesheet" href="updates-all.css?v=20261009-1">
+  <link rel="stylesheet" href="styles.css?v=20261119-f1">
+  <link rel="stylesheet" href="updates-all.css?v=20261119-f1">
   <link rel="stylesheet" href="products-sf-cd.css?v=20261103-1">
-  <link rel="stylesheet" href="ux-shell.css?v=20261030-2">
-  <link rel="stylesheet" href="media-plan.css?v=20261110-1">
+  <link rel="stylesheet" href="ux-shell.css?v=20261119-f1">
+  <link rel="stylesheet" href="media-plan.css?v=20261119-f1">
+  <link rel="stylesheet" href="narrative.css?v=20261119-f1">
+  <link rel="stylesheet" href="round3.css?v=20261119-f1">
   <style>.nested-tab-link{align-self:center;color:var(--text);font-weight:500;text-decoration:none;padding:var(--space-3) var(--space-2)}.nested-tab-link:hover{text-decoration:underline;text-underline-offset:5px}</style>
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="#" aria-label="Skillbox">
+    <a class="brand" href="?view=leads" data-keep-hash aria-label="Skillbox">
       <img src="assets/skillbox-logo.svg" alt="Skillbox">
     </a>
     <div class="header-meta">
@@ -25,7 +27,7 @@
     </div>
   </header>
 
-  <main class="page-shell">
+  <main class="page-shell" aria-busy="true">
     <section class="hero">
       <div>
         <p class="eyebrow">Аналитический отчёт</p>
@@ -59,6 +61,8 @@
       </nav>
     </div>
 
+    <div id="r3-delta"></div>
+
     <section id="products-sf-cd" class="dashboard-section" hidden aria-labelledby="products-sf-cd-heading">
       <div class="section-heading"><div><p class="eyebrow">SEO-продукты</p><h2 id="products-sf-cd-heading">Продукты SF/CD</h2></div></div>
       <div class="empty" role="status">Данные отчёта ещё не подготовлены.</div>
@@ -74,6 +78,9 @@
       </div>
 
       <div id="lead-attention" class="attention" aria-live="polite" hidden></div>
+      <div class="slice-context"><span>Выбранный срез</span><p id="lead-context" aria-live="polite"></p></div>
+      <p id="lead-period-status" class="period-status" role="status" hidden></p>
+      <div id="lead-observation" class="observation lead-observation" aria-live="polite"><p>Загружаем выбранный срез. Дождитесь данных перед сравнением.</p></div>
       <div id="lead-kpis" class="kpi-grid" aria-live="polite"></div>
 
       <article class="chart-card">
@@ -106,13 +113,14 @@
           <div id="lead-month-kpis" class="mini-kpis"></div>
           <p id="lead-audit-note" class="rec-growth-note"></p>
         </div>
-        <div id="lead-chart" class="chart" role="img" aria-label="График плана и факта лидов"></div>
+        <p id="lead-reading" class="reading-guide"></p>
+        <div id="lead-chart" class="chart" role="group" aria-label="График плана и факта лидов"></div>
         <div id="lead-pages-block" hidden>
           <div class="card-sub-heading">
             <h4>Доли лидов по типам страниц</h4>
             <p id="lead-pages-note"></p>
           </div>
-          <div class="table-wrap lead-pages-wrap">
+          <div class="table-wrap lead-pages-wrap" tabindex="0" role="region" aria-label="Таблица, прокрутка">
             <table>
               <thead id="lead-pages-thead"></thead>
               <tbody id="lead-pages-tbody"></tbody>
@@ -132,7 +140,7 @@
           </div>
         </div>
         <div id="lead-blog-kpis" class="mini-kpis"></div>
-        <div id="lead-blog-chart" class="chart" role="img" aria-label="Трафик блога по дням"></div>
+        <div id="lead-blog-chart" class="chart" role="group" aria-label="Трафик блога по дням"></div>
       </article>
 
       <article class="table-card">
@@ -145,11 +153,13 @@
             <span class="exec-badge exec-good">от 100%</span>
             <span class="exec-badge exec-mid">90–99,9%</span>
             <span class="exec-badge exec-low">ниже 90%</span>
+            <span class="exec-key"><span class="exec-meter"><i style="width:66.7%"></i><b></b></span>Шкала 0–150 %, риска — 100 %</span>
           </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Проект</th><th>План</th><th>Факт</th><th>Отклонение</th><th>Выполнение</th><th>Прогноз на месяц</th><th>YoY</th></tr></thead>
+        <p class="reading-guide">YoY — индекс к тому же периоду прошлого года: 100 % означает тот же объём, 120 % — на 20 % больше.</p>
+        <div class="table-wrap" tabindex="0" aria-label="Месячная сводка проектов, прокрутка по горизонтали">
+          <table class="tbl-cards">
+            <thead><tr><th scope="col">Проект</th><th scope="col">План</th><th scope="col">Факт</th><th scope="col">Отклонение</th><th scope="col">Выполнение</th><th scope="col">Прогноз на месяц</th><th scope="col">YoY</th></tr></thead>
             <tbody id="lead-summary"></tbody>
           </table>
         </div>
@@ -178,7 +188,7 @@
           </div>
         </div>
         <div id="direction-kpis" class="mini-kpis"></div>
-        <div id="direction-chart" class="chart" role="img" aria-label="Динамика лидов выбранного направления"></div>
+        <div id="direction-chart" class="chart" role="group" aria-label="Динамика лидов выбранного направления"></div>
       </article>
 
       <article class="table-card">
@@ -191,11 +201,12 @@
             <span class="exec-badge exec-good">от 100%</span>
             <span class="exec-badge exec-mid">90–99,9%</span>
             <span class="exec-badge exec-low">ниже 90%</span>
+            <span class="exec-key"><span class="exec-meter"><i style="width:66.7%"></i><b></b></span>Шкала 0–150 %, риска — 100 %</span>
           </div>
         </div>
-        <div class="table-wrap direction-summary-wrap">
-          <table>
-            <thead><tr><th>Направление</th><th>План</th><th>Факт</th><th>Отклонение</th><th>Выполнение</th><th>Прогноз на месяц</th><th>YoY</th></tr></thead>
+        <div class="table-wrap direction-summary-wrap" tabindex="0" role="region" aria-label="Таблица, прокрутка">
+          <table class="tbl-cards">
+            <thead><tr><th scope="col">Направление</th><th scope="col">План</th><th scope="col">Факт</th><th scope="col">Отклонение</th><th scope="col">Выполнение</th><th scope="col">Прогноз на месяц</th><th scope="col">YoY</th></tr></thead>
             <tbody id="direction-summary"></tbody>
           </table>
         </div>
@@ -214,7 +225,9 @@
         <strong>Ранний срез: высокая неопределённость прогноза</strong>
         <p id="forecast-warning-text" style="margin:8px 0 0"></p>
       </aside>
+      <div id="forecast-observation" class="observation section-observation" aria-live="polite"></div>
       <div id="forecast-kpis" class="mini-kpis" aria-live="polite"></div>
+      <div id="r3-forecast"></div>
 
       <article class="table-card">
         <div class="card-heading">
@@ -223,7 +236,7 @@
             <p id="forecast-projects-note">Факт — по дате среза; досчёт — ставка последних 7 дней на остаток месяца.</p>
           </div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" tabindex="0" role="region" aria-label="Таблица, прокрутка">
           <table>
             <thead><tr id="forecast-projects-head"><th>Проект</th><th>Сентябрь</th><th>Октябрь</th><th>Ноябрь: факт</th><th>Досчёт</th><th>Итог ноября</th><th>Тренд ноя/окт</th><th>Декабрь: тренд</th><th>Декабрь: сезонность</th><th>Декабрь: спрос</th><th>Сезонный коэф.</th></tr></thead>
             <tbody id="forecast-projects"></tbody>
@@ -238,7 +251,7 @@
             <p id="forecast-directions-note">Тринадцать направлений горячей воронки core; Дизайн и Нейросети разделены.</p>
           </div>
         </div>
-        <div class="table-wrap direction-summary-wrap">
+        <div class="table-wrap direction-summary-wrap" tabindex="0" role="region" aria-label="Таблица, прокрутка">
           <table>
             <thead><tr id="forecast-directions-head"><th>Направление</th><th>Сентябрь</th><th>Октябрь</th><th>Ноябрь: факт</th><th>Досчёт</th><th>Итог ноября</th><th>Тренд ноя/окт</th><th>Декабрь: тренд</th><th>Декабрь: сезонность</th><th>Декабрь: спрос</th><th>Сезонный коэф.</th></tr></thead>
             <tbody id="forecast-directions"></tbody>
@@ -265,6 +278,7 @@
         </div>
       </div>
 
+      <div class="media-jump" role="group" aria-label="Два анализа медиатрафика"><button type="button" data-media-jump="media-plan-card">Медиаплан</button><button type="button" data-media-jump="media-observation">Общая динамика ↓</button></div>
       <article id="media-plan-card" class="chart-card plan-card" hidden aria-labelledby="plan-heading">
         <div class="card-heading plan-heading">
           <div>
@@ -296,11 +310,11 @@
               <span><i class="legend-band"></i>Коридор нормы</span>
             </div>
           </div>
-          <div id="plan-chart" class="chart" role="img" aria-label="Накопленный SEO-трафик против базы и благоприятного сценария"></div>
+          <div id="plan-chart" class="chart" role="group" aria-label="Накопленный SEO-трафик против базы и благоприятного сценария"></div>
           <div class="plan-tables">
             <article class="table-card">
               <div class="card-heading"><div><h3>План и факт по месяцам</h3><p id="plan-months-note"></p></div></div>
-              <div class="table-wrap">
+              <div class="table-wrap" tabindex="0" role="region" aria-label="Таблица, прокрутка">
                 <table class="plan-table">
                   <thead><tr><th>Период</th><th>Факт</th><th>База</th><th>Благоприятный</th><th>К базе</th><th>К благоприятному</th><th>Статус</th><th>Прогноз по темпу</th></tr></thead>
                   <tbody id="plan-months"></tbody>
@@ -309,7 +323,7 @@
             </article>
             <article class="table-card">
               <div class="card-heading"><div><h3>Редакции против плана</h3><p id="plan-sections-note"></p></div></div>
-              <div class="table-wrap compact">
+              <div class="table-wrap compact" tabindex="0" role="region" aria-label="Таблица, прокрутка">
                 <table class="plan-table">
                   <thead><tr><th>Редакция</th><th>Факт</th><th>База</th><th>Благоприятный</th><th>К базе</th><th>Статус</th><th>Прогноз по темпу</th></tr></thead>
                   <tbody id="plan-sections"></tbody>
@@ -321,6 +335,7 @@
         </div>
       </article>
 
+      <div id="media-observation" class="observation section-observation" aria-live="polite"></div>
       <div id="media-kpis" class="kpi-grid" aria-live="polite"></div>
 
       <article class="chart-card media-chart-card">
@@ -348,13 +363,13 @@
             <span id="media-plan-legend" hidden><i class="legend-band"></i>План SEO: база — благоприятный</span>
           </div>
         </div>
-        <div id="media-chart" class="chart" role="img" aria-label="График SEO и прямых визитов"></div>
+        <div id="media-chart" class="chart" role="group" aria-label="График SEO и прямых визитов"></div>
       </article>
 
       <div class="split-grid">
         <article class="table-card">
           <div class="card-heading"><div><h3>По месяцам</h3><p id="media-monthly-note">За выбранный период.</p></div></div>
-          <div class="table-wrap compact">
+          <div class="table-wrap compact" tabindex="0" role="region" aria-label="Таблица, прокрутка">
             <table>
               <thead><tr><th>Месяц</th><th>SEO</th><th>Прямой</th><th>Доля SEO</th><th title="Факт SEO к базе за дни с планом; цвет — статус коридора">К базе</th></tr></thead>
               <tbody id="media-monthly"></tbody>
@@ -363,7 +378,7 @@
         </article>
         <article id="editorial-card" class="table-card">
           <div class="card-heading"><div><h3>Редакции Skillbox Media</h3><p id="editorial-summary-note">Итоги за выбранный период.</p></div></div>
-          <div class="table-wrap compact editorial-table">
+          <div class="table-wrap compact editorial-table" tabindex="0" role="region" aria-label="Таблица, прокрутка">
             <table>
               <thead><tr><th>Редакция</th><th>SEO</th><th>Прямой</th><th title="Факт SEO к базе за дни с планом; цвет — статус коридора">К базе</th></tr></thead>
               <tbody id="editorial-summary"></tbody>
@@ -410,7 +425,7 @@
           <div class="legend rec-legend" id="rec-legend" aria-label="Легенда"></div>
         </div>
         <label id="rec-compare-control" class="rec-compare" hidden><input type="checkbox" id="rec-compare"><span>Сравнить: весь SEO, Google и Яндекс</span></label>
-        <div id="rec-chart" class="chart" role="img" aria-label="График визитов из поисковых систем по выбранному срезу"></div>
+        <div id="rec-chart" class="chart" role="group" aria-label="График визитов из поисковых систем по выбранному срезу"></div>
       </article>
 
       <article id="rec-growth-section" class="chart-card rec-growth-section" aria-labelledby="rec-growth-title">
@@ -431,14 +446,14 @@
             <h4 id="rec-grown-title">Выросли</h4>
             <p id="rec-grown-count" class="rec-growth-count" aria-live="polite">—</p>
             <p id="rec-grown-stats" class="rec-growth-stats"></p>
-            <div id="rec-grown-chart" class="chart" role="img" aria-label="Суммарные визиты страниц с ростом"></div>
+            <div id="rec-grown-chart" class="chart" role="group" aria-label="Суммарные визиты страниц с ростом"></div>
             <button type="button" class="link-button" data-growth-group="grown">Показать страницы группы</button>
           </section>
           <section class="rec-growth-card" aria-labelledby="rec-notgrown-title">
             <h4 id="rec-notgrown-title">Не выросли</h4>
             <p id="rec-notgrown-count" class="rec-growth-count" aria-live="polite">—</p>
             <p id="rec-notgrown-stats" class="rec-growth-stats"></p>
-            <div id="rec-notgrown-chart" class="chart" role="img" aria-label="Суммарные визиты страниц без роста"></div>
+            <div id="rec-notgrown-chart" class="chart" role="group" aria-label="Суммарные визиты страниц без роста"></div>
             <button type="button" class="link-button" data-growth-group="notgrown">Показать страницы группы</button>
           </section>
         </div>
@@ -452,7 +467,7 @@
             <p id="rec-engine-note"></p>
           </div>
         </div>
-        <div class="table-wrap compact">
+        <div class="table-wrap compact" tabindex="0" role="region" aria-label="Таблица, прокрутка">
           <table>
             <thead><tr><th>Поисковая система</th><th>Визиты</th><th>Доля SEO</th></tr></thead>
             <tbody id="rec-engine-body"></tbody>
@@ -472,7 +487,7 @@
           <input id="rec-pages-search" type="search" aria-label="Поиск в таблице страниц" placeholder="Поиск страницы по адресу" autocomplete="off">
           <button id="rec-csv" class="rec-csv-button" type="button" title="Дневные визиты выбранной страницы и поисковой системы за выбранный период. Только данные Метрики из recovery.json — исходный Excel не публикуется.">Скачать CSV данных графика</button>
         </div>
-        <div class="table-wrap compact">
+        <div class="table-wrap compact" tabindex="0" role="region" aria-label="Таблица, прокрутка">
           <table id="rec-pages-table">
             <thead id="rec-pages-head"><tr>
               <th><button class="th-sort" data-sort="path" type="button">Страница</button></th>
@@ -532,14 +547,14 @@
             <div class="updates-focus"><button id="upd-focus-range" class="rec-csv-button" type="button" aria-describedby="upd-focus-note">Последние 90 дней</button><p id="upd-focus-note" class="updates-help"></p></div>
           </div>
           <div class="card-heading chart-heading-safe"><div><h3 id="upd-chart-title">SEO-визиты статей</h3><p id="upd-chart-note"></p></div><div class="legend"><span><i class="legend-line seo"></i>SEO-визиты</span><span><i class="legend-line rec-yandex"></i>Апдейты</span></div></div>
-          <div id="upd-chart" class="chart" role="img" aria-label="SEO-визиты выбранных статей и даты апдейтов"></div>
+          <div id="upd-chart" class="chart" role="group" aria-label="SEO-визиты выбранных статей и даты апдейтов"></div>
           <details class="updates-markers"><summary>Даты апдейтов в периоде графика</summary><ul id="upd-events-list"></ul></details>
         </article>
         <article class="table-card">
           <div class="card-heading"><div><h3>До и после апдейта</h3><p id="upd-table-note"></p></div><button id="upd-xlsx" class="rec-csv-button" type="button" disabled title="Все строки текущих фильтров и сортировки, не только видимая страница">Скачать таблицу XLSX</button></div>
           <div class="updates-color-legend" aria-label="Подсветка результатов"><span class="upd-result-growth">Рост</span><span class="upd-result-decline-large">Падение больше 20%</span><span class="upd-result-decline-small">Падение до 20% включительно</span><span>Без изменений / нет сравнения — без подсветки</span></div>
           <p id="upd-export-status" class="updates-help" role="status" aria-live="polite"></p>
-          <div class="table-wrap">
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Таблица, прокрутка">
             <table id="upd-table">
               <thead id="upd-table-head"><tr>
                 <th><button class="th-sort" data-sort="title" type="button">Статья / URL</button></th>
@@ -564,6 +579,7 @@
       <div class="section-heading"><div><p class="eyebrow">Медиатрафик</p><h2 id="upa-heading">Апдейты ALL</h2></div></div>
       <div id="upa-status" class="upa-notice" role="status"><p id="upa-status-text">Данные загрузятся при открытии вкладки.</p><button id="upa-retry" class="upa-button" type="button" hidden>Повторить загрузку</button></div>
       <div id="upa-content" hidden>
+        <div id="upa-kpis" class="kpi-grid upa-kpis" aria-live="polite"></div>
         <div id="upa-history-warning" class="upa-notice upa-warning" role="note" hidden></div>
         <div class="upa-controls" aria-label="Фильтры статей и апдейтов">
           <label class="upa-field"><span>Месяц обновления</span><select id="upa-month"><option value="all">Все месяцы</option><option value="undated">Без даты</option></select></label>
@@ -575,7 +591,6 @@
         </div>
         <p id="upa-scope-note" class="upa-help" aria-live="polite"></p>
         <div id="upa-future" class="upa-notice" hidden></div>
-        <div id="upa-kpis" class="kpi-grid upa-kpis" aria-live="polite"></div>
         <div class="upa-controls" aria-label="Период и детализация обоих графиков">
           <label class="upa-field"><span>Графики с</span><input id="upa-from" type="date"></label>
           <label class="upa-field"><span>Графики по</span><input id="upa-to" type="date"></label>
@@ -636,6 +651,7 @@
         </div>
       </div>
 
+      <div id="exp-observation" class="observation experiment-observation" aria-live="polite"></div>
       <article id="exp-funnel-card" class="chart-card exp-funnel-card">
         <div class="chart-filter-bar exp-filter-bar" aria-label="Фильтры эксперимента">
           <div class="exp-brand-row">
@@ -658,13 +674,9 @@
             <h3 id="exp-funnel-title">Воронка до и после релиза</h3>
             <p id="exp-funnel-note"></p>
           </div>
-          <div class="exec-legend" aria-hidden="true">
-            <span class="exec-badge exec-good">рост</span>
-            <span class="exec-badge exec-mid">до −10%</span>
-            <span class="exec-badge exec-low">падение больше 10%</span>
-          </div>
         </div>
         <div id="exp-funnel" class="exp-funnel"></div>
+        <div id="exp-absolute-ledger" class="absolute-ledger"></div>
       </article>
 
       <article class="chart-card">
@@ -688,7 +700,7 @@
           </div>
           <div class="legend" id="exp-legend" aria-label="Легенда"></div>
         </div>
-        <div id="exp-chart" class="chart" role="img" aria-label="Динамика показателя воронки выбранной страницы"></div>
+        <div id="exp-chart" class="chart" role="group" aria-label="Динамика показателя воронки выбранной страницы"></div>
       </article>
 
       <article class="table-card">
@@ -698,7 +710,7 @@
             <p id="exp-results-note"></p>
           </div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" tabindex="0" role="region" aria-label="Таблица, прокрутка">
           <table class="exp-results-table">
             <thead><tr><th>Страница</th><th>Релиз</th><th>Дней до / после</th><th>Визиты в день</th><th>Лиды в день</th><th>CR1</th><th>Продажи в день</th><th>CR2</th><th>Выручка в день</th></tr></thead>
             <tbody id="exp-results-body"></tbody>
@@ -713,7 +725,7 @@
             <p id="exp-table-note"></p>
           </div>
         </div>
-        <div class="table-wrap compact">
+        <div class="table-wrap compact" tabindex="0" role="region" aria-label="Таблица, прокрутка">
           <table>
             <thead><tr><th>Страница</th><th>Визиты</th><th>Лиды</th><th>CR1</th><th>Продажи</th><th>CR2</th><th>Выручка</th></tr></thead>
             <tbody id="exp-table-body"></tbody>
@@ -733,21 +745,21 @@
     </section>
   </main>
 
-  <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+  <div id="tooltip" class="tooltip" role="tooltip"></div>
   <footer>
     <span>Skillbox Analytics</span>
     <span>Power BI · Яндекс Метрика</span>
   </footer>
-  <script src="ux-shell.js?v=20261111-1" defer></script>
-  <script src="recovery.js?v=20261002-2" defer></script>
-  <script src="experiment.js?v=20261110-1" defer></script>
+  <script src="ux-shell.js?v=20261119-f1" defer></script>
+  <script src="recovery.js?v=20261119-f1" defer></script>
+  <script src="experiment.js?v=20261119-f1" defer></script>
   <script src="xlsx-export.js?v=20261002-1" defer></script>
-  <script src="updates.js?v=20261002-9" defer></script>
-  <script src="updates-all.js?v=20261009-1" defer></script>
+  <script src="updates.js?v=20261119-f1" defer></script>
+  <script src="updates-all.js?v=20261119-f1" defer></script>
   <script src="products_model.js?v=20261102-2" defer></script>
-  <script src="products-sf-cd.js?v=20261103-1" defer></script>
-  <script src="media-plan.js?v=20261110-1" defer></script>
-  <script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[data-keep-hash]');if(a){a.href=a.getAttribute('href').split('#')[0]+location.hash;}},true);</script>
-  <script src="app.js?v=20261110-1" defer></script>
+  <script src="products-sf-cd.js?v=20261119-f1" defer></script>
+  <script src="media-plan.js?v=20261119-f1" defer></script>
+  <script src="app.js?v=20261119-f1" defer></script>
+  <script src="round3.js?v=20261119-f1" defer></script>
 </body>
 </html>

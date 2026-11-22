@@ -230,7 +230,7 @@
     if (ui.from) p.set('from', ui.from); if (ui.to) p.set('to', ui.to);
     p.set('sort', ui.sort); p.set('dir', ui.direction === 1 ? 'asc' : 'desc');
     if (ui.page) p.set('page', String(ui.page + 1)); if (ui.focusEvent) p.set('event', ui.focusEvent);
-    history.replaceState(null, '', `${location.pathname}?${p.toString()}${location.hash}`);
+    (window.DashboardUrl?.replace || history.replaceState.bind(history))(null, '', `${location.pathname}?${p.toString()}${location.hash}`);
   }
   function option(select, value, label, selected) {
     const n = document.createElement('option'); n.value = value; n.textContent = label; n.selected = value === selected; select.appendChild(n);
@@ -242,6 +242,7 @@
   }
   function availability() {
     if (!$('upa-status')) return;
+    $('updates-all').setAttribute('aria-busy', String(ui.phase === 'loading'));
     $('upa-status').hidden = ui.phase === 'ready'; $('upa-content').hidden = ui.phase !== 'ready';
     $('upa-status-text').textContent = ui.phase === 'loading' ? 'Загружаем Апдейты ALL.' : ui.phase === 'empty' ? 'В новом источнике пока нет статей. Остальные вкладки работают.' : `Апдейты ALL недоступны. ${ui.errorLabel || 'Не удалось загрузить или проверить данные.'} Остальные вкладки работают.`;
     $('upa-retry').hidden = !['unavailable', 'empty'].includes(ui.phase);
@@ -260,9 +261,11 @@
     selectOptions('upa-section', [['all', 'Все разделы'], ...[...new Set(ui.data.pages.map((p) => p.section))].sort().map((v) => [v, sectionNames[v] || capitalize(v) || 'Раздел не указан'])], ui.section);
     selectOptions('upa-article', [['all', `Все статьи (${s.base.length})`], ...s.base.map((p) => [p.id, p.title === p.path ? p.path : `${p.title} · ${p.path}`])], ui.article);
     for (const [id, value] of [['upa-search', ui.q], ['upa-window', ui.days], ['upa-grain', ui.grain], ['upa-filter-status', ui.status]]) $(id).value = value;
+    const requested = [ui.from, ui.to];
     const clamp = (d, fallback) => !isDate(d) ? fallback : d < DATE_FROM ? DATE_FROM : d > ui.data.meta.asOf ? ui.data.meta.asOf : d;
     ui.from = clamp(ui.from, DATE_FROM); ui.to = clamp(ui.to, ui.data.meta.asOf);
     if (ui.from > ui.to) [ui.from, ui.to] = [ui.to, ui.from];
+    notifyPeriod('updates-all', requested, [ui.from, ui.to]);
     for (const [id, value] of [['upa-from', ui.from], ['upa-to', ui.to]]) { $(id).value = value; $(id).min = DATE_FROM; $(id).max = ui.data.meta.asOf; }
     $('upa-scope-note').textContent = `Статей на графиках: ${s.shown.length}. Событий и строк без даты: ${s.rows.length}. Каждый канонический URL учитываем один раз. Месяц апдейта не сокращает период графика.`;
   }
@@ -287,11 +290,41 @@
     if (sourceLink.hostname === 'docs.google.com' && sourceLink.pathname.endsWith('/export')) { sourceLink.pathname = sourceLink.pathname.replace(/\/export$/, '/edit'); sourceLink.searchParams.delete('format'); }
     const attribution = m.attribution === 'cross_device_last_significant' ? 'Последний значимый переход, кросс-девайс' : m.attribution;
     const finalDates = [...new Set(all.map((p) => p.gsc.meta.finalThrough).filter(Boolean))].map(dateLabel).join(', ');
-    $('upa-source').innerHTML = `<p>Список: <a href="${esc(sourceLink.href)}" target="_blank" rel="noopener noreferrer">лист «апдейт» в Google Sheets</a>. Уникальных статей: ${fmt(all.length)}, с датой обновления: ${fmt(dated)}, без даты: ${fmt(undated)}. Исходных строк с URL: ${fmt(m.sourceStats.urlRows)}, из них с датой: ${fmt(m.sourceStats.datedRows)}, без даты: ${fmt(m.sourceStats.undatedRows)}.</p><p>Срез трафика: ${dateLabel(m.asOf)}. Список загружен: ${esc(fetched)} МСК. Метрика: ${esc(m.metric)}; счётчик ${esc(m.counterId)}; атрибуция: ${esc(attribution)}. Все регионы и устройства. Часовой пояс Метрики: ${esc(m.timezone || 'Europe/Moscow')}. Семплирование: ${m.sampled === false ? 'нет' : m.sampled === true ? 'есть' : 'не указано'}. Сверка: ${m.reconciled === true ? 'пройдена' : 'не подтверждена'}.</p><p>GSC: ${gscRange}. Завершённые данные по ${esc(finalDates || 'статусу каждого дня')}. Предварительные дни: ${provisionalDates.length ? provisionalDates.map(dateLabel).join(', ') : 'нет'}. Вебмастер: ${wmRange}. Часовой пояс GSC: ${esc([...new Set(all.map((p) => p.gsc.meta.timezone).filter(Boolean))].join(', ') || 'America/Los_Angeles')}; границы суток могут отличаться от Метрики.</p><details><summary>Проверка списка статей</summary><p>Повторных строк с URL: ${fmt(m.sourceStats.duplicateUrlRows)}. Строк с датой: ${fmt(m.sourceStats.datedRows)}, без даты: ${fmt(m.sourceStats.undatedRows)}. Из строк без даты ${fmt(mixedRows)} относятся к статьям с датой в другой строке. Такие URL учитываем по дате, без дополнительной строки или включения в фильтр «Без даты».</p><p>SHA-256: <code>${esc(m.sourceSha256)}</code></p></details>`;
+    $('upa-source').innerHTML = `<p>Список: <a class="upa-link" href="${esc(sourceLink.href)}" target="_blank" rel="noopener noreferrer">лист «апдейт» в Google Sheets</a>. Уникальных статей: ${fmt(all.length)}, с датой обновления: ${fmt(dated)}, без даты: ${fmt(undated)}. Исходных строк с URL: ${fmt(m.sourceStats.urlRows)}, из них с датой: ${fmt(m.sourceStats.datedRows)}, без даты: ${fmt(m.sourceStats.undatedRows)}.</p><p>Срез трафика: ${dateLabel(m.asOf)}. Список загружен: ${esc(fetched)} МСК. Метрика: ${esc(m.metric)}; счётчик ${esc(m.counterId)}; атрибуция: ${esc(attribution)}. Все регионы и устройства. Часовой пояс Метрики: ${esc(m.timezone || 'Europe/Moscow')}. Семплирование: ${m.sampled === false ? 'нет' : m.sampled === true ? 'есть' : 'не указано'}. Сверка: ${m.reconciled === true ? 'пройдена' : 'не подтверждена'}.</p><p>GSC: ${gscRange}. Завершённые данные по ${esc(finalDates || 'статусу каждого дня')}. Предварительные дни: ${provisionalDates.length ? provisionalDates.map(dateLabel).join(', ') : 'нет'}. Вебмастер: ${wmRange}. Часовой пояс GSC: ${esc([...new Set(all.map((p) => p.gsc.meta.timezone).filter(Boolean))].join(', ') || 'America/Los_Angeles')}; границы суток могут отличаться от Метрики.</p><details><summary>Проверка списка статей</summary><p>Повторных строк с URL: ${fmt(m.sourceStats.duplicateUrlRows)}. Строк с датой: ${fmt(m.sourceStats.datedRows)}, без даты: ${fmt(m.sourceStats.undatedRows)}. Из строк без даты ${fmt(mixedRows)} относятся к статьям с датой в другой строке. Такие URL учитываем по дате, без дополнительной строки или включения в фильтр «Без даты».</p><p>SHA-256: <code>${esc(m.sourceSha256)}</code></p></details>`;
     const futures = all.flatMap((p) => p.futureUpdates.map((e) => ({ p, e }))).filter(({ p, e }) => (ui.month === 'all' || e.date.startsWith(ui.month)) && (ui.section === 'all' || p.section === ui.section) && (ui.article === 'all' || p.ids.includes(ui.article)) && (!ui.q || `${p.title} ${p.url}`.toLocaleLowerCase('ru').includes(ui.q.toLocaleLowerCase('ru'))));
     $('upa-future').hidden = !futures.length;
     $('upa-future').innerHTML = `<span class="upa-badge">Будущие даты: ${futures.length}</span><p>Даты позже среза ${dateLabel(m.asOf)} сохранены отдельно и не участвуют в сравнениях.</p><details><summary>Показать будущие обновления</summary><ul>${futures.map(({ p, e }) => `<li>${dateLabel(e.date)} · ${esc(p.title)} · ${esc(p.url)}</li>`).join('')}</ul></details>`;
   }
+  function renderObservation(s) {
+    let box = $('upa-observation');
+    if (!box) {
+      box = document.createElement('article'); box.id = 'upa-observation';
+      box.className = 'observation section-observation'; $('upa-content').prepend(box);
+      box.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-upa-status]'); if (!b) return;
+        ui.status = b.dataset.upaStatus; $('upa-filter-status').value = ui.status; changed();
+      });
+    }
+    const rows = s.rows.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || a.page.id.localeCompare(b.page.id));
+    const focused = rows.find((r) => ui.focusEvent && r.date === ui.focusEvent);
+    const row = focused || rows[0];
+    const selection = ui.article === 'all' ? `Когорта: ${s.shown.length} статей` : s.shown[0]?.title || 'Статья не найдена';
+    const context = `${selection} · ${ui.month === 'all' ? 'все месяцы' : ui.month === 'undated' ? 'без даты' : ui.month} · ${ui.section === 'all' ? 'все разделы' : sectionNames[ui.section] || ui.section}${ui.status === 'all' ? '' : ` · фильтр: ${ui.status === 'needs-revision' ? 'нужна доработка' : statusLabels[ui.status]}`}${ui.q ? ` · поиск: ${ui.q}` : ''}`;
+    box.innerHTML = `<span class="observation-label">${esc(context)}</span>`;
+    if (!row) { box.innerHTML += '<h3>Нет событий по выбранным фильтрам</h3><p>Сравнение не рассчитано. Измените месяц, статью или статус.</p>'; return; }
+    const windows = row.n ? `До: ${dateLabel(row.preDates[0])}–${dateLabel(row.preDates[row.n - 1])}; после: ${dateLabel(row.postDates[0])}–${dateLabel(row.postDates[row.n - 1])}. ${row.n === ui.days ? 'Полное' : 'Частичное'} окно: ${row.n}/${ui.days} дн. с каждой стороны.` : 'Нет парного окна.';
+    const engines = ['gsc', 'webmaster'].map((name) => `${name === 'gsc' ? 'GSC' : 'Яндекс'}, средняя позиция: ${fmt(row[name].pre, 1)} → ${fmt(row[name].post, 1)}; покрытие ${row[name].before.measured}/${row.n} и ${row[name].after.measured}/${row.n} дн.`).join(' ');
+    const headline = { severe: 'Есть сигнал доработки', warning: 'Есть сигнал доработки', 'no-data': 'Сигнал недоступен', 'no-signal': 'Сигнал не выявлен' }[row.signal];
+    const cohortView = !focused && ui.article === 'all';
+    const needs = cohortView && ui.status === 'all' ? s.rows.filter((r) => ['severe', 'warning'].includes(r.signal)).length : 0;
+    if (needs) box.innerHTML += `<p class="upa-cohort-line">В выборке нужна доработка: ${fmt(needs)} ${needs % 10 === 1 && needs % 100 !== 11 ? 'событие' : [2, 3, 4].includes(needs % 10) && ![12, 13, 14].includes(needs % 100) ? 'события' : 'событий'}. <button type="button" class="observation-check upa-link" data-upa-status="needs-revision">Показать только их</button></p>`;
+    if (ui.focusEvent && !focused) box.innerHTML += `<p class="observation-fallback">Запрошенного апдейта ${dateLabel(ui.focusEvent)} нет в текущей выборке — ${row.date ? `показан последний: ${dateLabel(row.date)}` : 'датированных апдейтов в ней нет'}.</p>`;
+    box.innerHTML += `<h3>${cohortView && row.date ? `Последний апдейт: ${headline.toLowerCase()}` : headline}</h3>`
+      + `<p>${row.date ? focused ? 'Выбранный апдейт' : 'Последний апдейт' : 'Статья без сравнения'} · ${row.futureOnly ? 'будущая дата' : dateLabel(row.date)}. SEO: <span class="nw">${fmt(row.pre)}</span> → <span class="nw">${fmt(row.post)}</span>. Окно: ${row.n}/${ui.days} дн.${row.date && row.n < 7 ? ' Для сигнала нужно ≥ 7 дней.' : ''} Динамика не доказывает эффект апдейта.</p>`
+      + `<details class="narrative-method"><summary>Основания сравнения</summary><p>${esc(row.page.title)}</p><p>${esc(windows)} ${row.n ? esc(engines) : ''} Срез: ${dateLabel(ui.data.meta.asOf)}; графики ${dateLabel(ui.from)}–${dateLabel(ui.to)} не ограничивают окна.</p></details>`
+      + '<button type="button" class="observation-check upa-link" data-reveal="upa-table">Проверить событие и покрытие</button> · <button type="button" class="observation-check upa-link" data-reveal="upa-source">Источники</button>';
+  }
+
   function renderKpis(s, groups) {
     const needs = s.rows.filter((r) => ['severe', 'warning'].includes(r.signal));
     const complete = groups.length && groups.every((g) => g.traffic !== null);
@@ -305,7 +338,11 @@
   }
   const GRAPH_METHOD = 'Позиции по дням, неделям и месяцам взвешиваем по показам известных измерений, не усредняем дневные средние. На графиках учитываем доступные URL-дни даже при неполной истории; показываем фактическое и ожидаемое покрытие. Состав измеренных URL может меняться. Разрыв означает, что нет известных позиций с положительными показами. Для сравнения до и после и сигнала по-прежнему нужно полное парное окно. Срез источника указан над графиком. Для анализа одной статьи выберите её в списке или таблице.';
   function drawChart(id, groups, eventMarkers, positions = false) {
-    const node = $(id); if (!groups.length) { node.innerHTML = '<p>Нет дат для графика.</p>'; return; }
+    const node = $(id), tableId = positions ? 'upa-position-data' : 'upa-traffic-data';
+    if (!groups.length) {
+      node.innerHTML = '<p role="status">Нет дат для графика. Выберите другой период.</p>';
+      $(tableId).replaceChildren(); node.onfocus = node.onkeydown = null; return;
+    }
     if (positions) {
       const summary = (name) => {
         const total = groups.reduce((a, g) => ({ measured: a.measured + g[name].measured, expected: a.expected + g[name].expected, provisional: a.provisional + g[name].provisional }), { measured: 0, expected: 0, provisional: 0 });
@@ -317,10 +354,14 @@
       if (method) method.textContent = GRAPH_METHOD;
     }
     // Keep SVG text legible on a 380px screen instead of shrinking a 1200px canvas.
-    const width = Math.max(420, Math.min(1200, node.clientWidth || window.innerWidth || 1200));
-    const height = width < 640 ? 340 : 390, left = width < 640 ? 60 : 72, right = width < 640 ? 12 : 28, top = 42, bottom = 54, iw = width - left - right, ih = height - top - bottom;
+    const width = Math.max(280, Math.min(1200, node.clientWidth || window.innerWidth || 1200));
+    const left = width < 640 ? 60 : 72, right = width < 640 ? 12 : 28, bottom = 54, iw = width - left - right;
     const fromTime = Date.parse(ui.from), toTime = Date.parse(ui.to), span = Math.max(DAY, toTime - fromTime);
     const xDate = (d) => left + (toTime === fromTime ? iw / 2 : (Date.parse(d) - fromTime) / span * iw);
+    const eventCount = eventMarkers.reduce((n, m) => n + m.count, 0);
+    const grouped = eventCount > 6 || eventMarkers.some((m, i) => i > 0 && xDate(m.date) - xDate(eventMarkers[i - 1].date) < 86);
+    const height = width < 640 ? (grouped ? 400 : 340) : 390, top = width < 640 && grouped ? 104 : 62;
+    const ih = height - top - bottom, badgeHeight = width < 640 ? 60 : 32;
     const x = (g) => xDate(new Date((Date.parse(g.start) + Date.parse(g.end)) / 2).toISOString().slice(0, 10));
     const series = positions ? [{ key: 'gsc', label: names.gsc, cls: 'upa-line-gsc' }, { key: 'webmaster', label: names.webmaster, cls: 'upa-line-wm' }] : [{ key: 'traffic', label: 'SEO-трафик', cls: 'upa-line-traffic' }];
     const value = (g, s) => positions ? g[s.key].position : g.traffic;
@@ -329,8 +370,9 @@
     const max = positions ? Math.max(min + 1, Math.ceil(Math.max(...(values.length ? values : [2])))) : Math.max(1, Math.ceil(Math.max(...(values.length ? values : [1])) * 1.08));
     const y = (v) => top + (positions ? (v - min) / (max - min) : 1 - v / max) * ih;
     let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${positions ? 'Средняя позиция: меньше — выше на графике' : 'SEO-трафик'} с ${dateLabel(ui.from)} по ${dateLabel(ui.to)}"><text x="${left}" y="18" class="upa-axis-label">${positions ? 'Средняя позиция · меньше лучше' : 'SEO-трафик · визиты'}</text>`;
-    for (let i = 0; i <= 5; i++) {
-      const v = positions ? min + (max - min) * i / 5 : max * i / 5;
+    const div = !positions && max < 5 ? max : 5; // малый максимум: целые деления, подписи не повторяются
+    for (let i = 0; i <= div; i++) {
+      const v = positions ? min + (max - min) * i / 5 : max * i / div;
       svg += `<line class="upa-grid" x1="${left}" x2="${width - right}" y1="${y(v)}" y2="${y(v)}"/><text class="upa-axis-label" x="${left - 12}" y="${y(v) + 4}" text-anchor="end">${esc(fmt(v, positions ? 1 : 0))}</text>`;
     }
     const ticks = window.innerWidth < 640 ? 3 : 6;
@@ -350,13 +392,27 @@
         svg += `<circle class="${s.cls} upa-point${provisional ? ' upa-provisional' : ''}" cx="${x(g)}" cy="${y(v)}" r="${provisional ? 4 : 2}"/>`;
       }
     }
-    eventMarkers.forEach((m, i) => {
+    if (grouped) {
+      const slots = Math.max(1, Math.min(6, Math.floor(iw / 100))), clusters = new Map();
+      for (const m of eventMarkers) {
+        const slot = Math.min(slots - 1, Math.max(0, Math.floor((xDate(m.date) - left) / iw * slots)));
+        if (!clusters.has(slot)) clusters.set(slot, []);
+        clusters.get(slot).push(m);
+      }
+      for (const [slot, items] of clusters) {
+        const first = items[0].date, last = items[items.length - 1].date;
+        const count = items.reduce((n, m) => n + m.count, 0), cx = left + (slot + 0.5) * iw / slots;
+        const title = `${dateLabel(first)}${last !== first ? '–' + dateLabel(last) : ''}: ${count} событий. ` + items.map((m) => `${dateLabel(m.date)}: ${m.articles.map((p) => p.title).join('; ')}`).join('. ');
+        svg += `<g class="upa-event-group" role="button" tabindex="0" data-reveal="upa-markers" aria-label="${esc(title + '. Раскрыть полный список')}"><title>${esc(title)}</title><rect class="upa-event-count" x="${cx - 42}" y="26" width="84" height="${badgeHeight}" rx="4"/><text class="upa-axis-label" x="${cx}" y="${26 + badgeHeight / 2 + 4}" text-anchor="middle">${count} апд.</text><line class="upa-event-range" x1="${xDate(first)}" x2="${xDate(last)}" y1="${top - 4}" y2="${top - 4}"/><line class="upa-event-range" x1="${xDate(first)}" x2="${xDate(first)}" y1="${top - 8}" y2="${top + 3}"/><line class="upa-event-range" x1="${xDate(last)}" x2="${xDate(last)}" y1="${top - 8}" y2="${top + 3}"/></g>`;
+      }
+    } else eventMarkers.forEach((m) => {
       const xx = xDate(m.date), label = `${dateLabel(m.date)} · ${m.count} ${m.count === 1 ? 'статья' : 'статей'}`;
-      svg += `<g><title>${esc(label + ': ' + m.articles.map((p) => p.title).join('; '))}</title><line class="upa-event" x1="${xx}" x2="${xx}" y1="${top}" y2="${top + ih}"/>${eventMarkers.length <= 8 ? `<text class="upa-axis-label" x="${Math.max(left + 40, Math.min(width - right - 40, xx))}" y="${28 + (i % 2) * 12}" text-anchor="middle">${esc(dateLabel(m.date).slice(0, 5))}</text>` : ''}</g>`;
+      svg += `<g><title>${esc(label + ': ' + m.articles.map((p) => p.title).join('; '))}</title><line class="upa-event" x1="${xx}" x2="${xx}" y1="${top}" y2="${top + ih}"/><text class="upa-axis-label" x="${Math.max(left + 40, Math.min(width - right - 40, xx))}" y="43" text-anchor="middle">${esc(dateLabel(m.date).slice(0, 5))}</text></g>`;
     });
-    if (!values.length) svg += `<text class="upa-axis-label" x="${left + iw / 2}" y="${top + ih / 2}" text-anchor="middle">Нет измерений для выбранной выборки</text>`;
+    if (!values.length) svg += `<text class="upa-axis-label" x="${left + iw / 2}" y="${top + ih / 2}" text-anchor="middle">Нет измерений</text>`;
     svg += `<line class="upa-cursor" x1="0" x2="0" y1="${top}" y2="${top + ih}" visibility="hidden"/><rect class="upa-hit" x="${left}" y="${top}" width="${iw}" height="${ih}"/></svg><div class="upa-chart-readout" aria-live="polite"></div>`;
-    node.innerHTML = svg; node.tabIndex = 0; node.setAttribute('role', 'group');
+    node.innerHTML = svg + (grouped ? `<p class="upa-help upa-event-summary">${eventCount} событий сгруппированы по близости дат. Скобки показывают фактические границы групп; точные даты и статьи сохранены. <button type="button" class="observation-check upa-link" data-reveal="upa-markers">Раскрыть все события</button></p>` : '');
+    node.tabIndex = 0; node.setAttribute('role', 'group');
     node.setAttribute('aria-label', `${positions ? 'График средних позиций' : 'График SEO-трафика'}. Стрелки влево и вправо показывают значения. Home и End — начало и конец.`);
     let hoverIndex = 0;
     const show = (i) => {
@@ -370,15 +426,19 @@
       const cursor = node.querySelector('.upa-cursor'); cursor.setAttribute('x1', x(g)); cursor.setAttribute('x2', x(g)); cursor.setAttribute('visibility', 'visible');
     };
     const svgNode = node.querySelector('svg');
-    node.querySelector('.upa-hit').addEventListener('pointermove', (e) => {
+    const pointer = (e) => {
       const rect = svgNode.getBoundingClientRect(), xx = (e.clientX - rect.left) * width / rect.width;
       let nearest = 0; for (let i = 1; i < groups.length; i++) if (Math.abs(x(groups[i]) - xx) < Math.abs(x(groups[nearest]) - xx)) nearest = i;
       show(nearest);
-    });
+    };
+    node.querySelector('.upa-hit').addEventListener('pointermove', pointer);
+    node.querySelector('.upa-hit').addEventListener('pointerdown', pointer);
     node.onfocus = () => show(hoverIndex);
-    node.onkeydown = (e) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); show(e.key === 'Home' ? 0 : e.key === 'End' ? groups.length - 1 : hoverIndex + (e.key === 'ArrowRight' ? 1 : -1)); } };
-    const tableId = positions ? 'upa-position-data' : 'upa-traffic-data';
-    $(tableId).innerHTML = `<table><caption>${positions ? 'Средние позиции и полнота измерений' : 'SEO-трафик и полнота измерений'}</caption><thead><tr><th>Период</th>${positions ? '<th>GSC</th><th>Показы GSC / покрытие</th><th>Яндекс</th><th>Показы Яндекс / покрытие</th>' : '<th>SEO-трафик</th><th>Покрытие URL-дней</th>'}</tr></thead><tbody>${groups.map((g) => `<tr><td>${dateLabel(g.start)}${g.end !== g.start ? '–' + dateLabel(g.end) : ''}</td>${positions ? `<td>${fmt(g.gsc.position, 1)}</td><td>${fmt(g.gsc.impressions)} / ${coverageLabel(g.gsc)}</td><td>${fmt(g.webmaster.position, 1)}</td><td>${fmt(g.webmaster.impressions)} / ${coverageLabel(g.webmaster)}</td>` : `<td>${fmt(g.traffic)}</td><td>${g.trafficMeasured}/${g.trafficExpected}</td>`}</tr>`).join('')}</tbody></table>`;
+    node.onkeydown = (e) => {
+      if (e.key === 'Escape') { node.querySelector('.upa-cursor').setAttribute('visibility', 'hidden'); return; }
+      if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); show(e.key === 'Home' ? 0 : e.key === 'End' ? groups.length - 1 : hoverIndex + (e.key === 'ArrowRight' ? 1 : -1)); }
+    };
+    $(tableId).innerHTML = `<table><caption>${positions ? 'Средние позиции и полнота измерений' : 'SEO-трафик и полнота измерений'}</caption><thead><tr><th scope="col">Период</th>${positions ? '<th scope="col">GSC</th><th scope="col">Показы GSC / покрытие</th><th scope="col">Яндекс</th><th scope="col">Показы Яндекс / покрытие</th>' : '<th scope="col">SEO-трафик</th><th scope="col">Покрытие URL-дней</th>'}</tr></thead><tbody>${groups.map((g) => `<tr><th scope="row">${dateLabel(g.start)}${g.end !== g.start ? '–' + dateLabel(g.end) : ''}</th>${positions ? `<td>${fmt(g.gsc.position, 1)}</td><td>${fmt(g.gsc.impressions)} / ${coverageLabel(g.gsc)}</td><td>${fmt(g.webmaster.position, 1)}</td><td>${fmt(g.webmaster.impressions)} / ${coverageLabel(g.webmaster)}</td>` : `<td>${fmt(g.traffic)}</td><td>${g.trafficMeasured}/${g.trafficExpected}</td>`}</tr>`).join('')}</tbody></table>`;
   }
   function deltaLabel(row) {
     if (row.pre === null) return '—';
@@ -417,7 +477,7 @@
       const windowLabel = r.n ? `${r.n === ui.days ? 'Полное' : 'Частичное'} окно: ${r.n}/${ui.days} дней с каждой стороны` : 'Нет парного окна';
       const periods = r.n ? `${dateLabel(r.preDates[0])}–${dateLabel(r.preDates[r.n - 1])} / ${dateLabel(r.postDates[0])}–${dateLabel(r.postDates[r.n - 1])}` : '';
       const neighbors = [r.previous ? 'Предыдущий: ' + dateLabel(r.previous) : '', r.next ? 'Следующий: ' + dateLabel(r.next) : ''].filter(Boolean).join('; ');
-      return `<tr class="upa-row${signalClass}" data-article="${esc(r.page.id)}" data-event="${esc(r.date || '')}"><td><button type="button" class="link-button" data-focus-article="${esc(r.page.id)}">${esc(r.page.title)}</button><span class="upa-cell-note">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(r.page.path || url)}</a>` : esc(r.page.path)}${r.page.futureUpdates.length ? `<br><span class="upa-badge">Будущие даты: ${r.page.futureUpdates.length}</span>` : ''}</span></td><td>${r.futureOnly ? 'Будущая дата' : dateLabel(r.date)}<span class="upa-cell-note">Строки: ${esc((r.sourceRows || []).join(', ') || '—')}</span></td><td class="upa-traffic-${r.traffic}">${fmt(r.pre)} → ${fmt(r.post)}<span class="upa-cell-note">${deltaLabel(r)} · ${trafficLabels[r.traffic]}</span></td><td>${engineCell(r, 'gsc')}</td><td>${engineCell(r, 'webmaster')}</td><td><span class="upa-badge">${esc(rowStatus(r))}</span><span class="upa-cell-note">${esc(windowLabel)}${periods ? '<br>' + periods : ''}${neighbors ? '<br>' + neighbors : ''}</span></td></tr>`;
+      return `<tr class="upa-row${signalClass}" data-article="${esc(r.page.id)}" data-event="${esc(r.date || '')}"><td><button type="button" class="link-button" data-focus-article="${esc(r.page.id)}">${esc(r.page.title)}</button><span class="upa-cell-note">${url ? `<a class="upa-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(r.page.path || url)}</a>` : esc(r.page.path)}${r.page.futureUpdates.length ? `<br><span class="upa-badge">Будущие даты: ${r.page.futureUpdates.length}</span>` : ''}</span></td><td>${r.futureOnly ? 'Будущая дата' : dateLabel(r.date)}<span class="upa-cell-note">Строки: ${esc((r.sourceRows || []).join(', ') || '—')}</span></td><td class="upa-traffic-${r.traffic}">${fmt(r.pre)} → ${fmt(r.post)}<span class="upa-cell-note">${deltaLabel(r)} · ${trafficLabels[r.traffic]}</span></td><td>${engineCell(r, 'gsc')}</td><td>${engineCell(r, 'webmaster')}</td><td><span class="upa-badge">${esc(rowStatus(r))}</span><span class="upa-cell-note">${esc(windowLabel)}${periods ? '<br>' + periods : ''}${neighbors ? '<br>' + neighbors : ''}</span></td></tr>`;
     }).join('') : '<tr><td colspan="6">Нет строк по выбранным фильтрам. Измените фильтр месяца, статьи или статуса.</td></tr>';
     $('upa-page-label').textContent = `Страница ${ui.page + 1} из ${pageCount} · строк ${list.length}`;
     $('upa-prev').disabled = ui.page === 0; $('upa-next').disabled = ui.page >= pageCount - 1;
@@ -433,9 +493,9 @@
     if (active() && $('as-of')) $('as-of').textContent = `Апдейты ALL по ${dateLabel(ui.data.meta.asOf)}`;
     const s = scope(); renderControls(s); renderSources();
     const groups = aggregate(ui.data, s.shown, ui.from, ui.to, ui.grain), marks = markers(s.shown, ui.from, ui.to);
-    renderKpis(s, groups); drawChart('upa-traffic-chart', groups, marks); drawChart('upa-position-chart', groups, marks, true); renderTable(s.rows);
+    renderObservation(s); renderKpis(s, groups); drawChart('upa-traffic-chart', groups, marks); drawChart('upa-position-chart', groups, marks, true); renderTable(s.rows);
     $('upa-period-note').textContent = `Период графиков: ${dateLabel(ui.from)}–${dateLabel(ui.to)}. Окно сравнения: ${ui.days} дней; оно не зависит от периода графика.${ui.focusEvent ? ' Выбран апдейт ' + dateLabel(ui.focusEvent) + '.' : ''}`;
-    $('upa-markers').innerHTML = marks.length ? `<summary>Даты апдейтов на графиках (${marks.length})</summary><ul>${marks.map((m) => `<li><strong>${dateLabel(m.date)}</strong> · ${m.count} ${m.count === 1 ? 'статья' : 'статей'}<ul>${m.articles.map((p) => `<li>${esc(p.title)} · строки ${esc(p.sourceRows.join(', '))}</li>`).join('')}</ul></li>`).join('')}</ul>` : '<summary>В выбранном периоде нет дат апдейтов</summary>';
+    $('upa-markers').innerHTML = marks.length ? `<summary>Все события на графиках: ${marks.reduce((n, m) => n + m.count, 0)} · дат: ${marks.length}</summary><ul>${marks.map((m) => `<li><strong>${dateLabel(m.date)}</strong> · ${m.count} ${m.count === 1 ? 'статья' : 'статей'}<ul>${m.articles.map((p) => `<li>${esc(p.title)} · строки ${esc(p.sourceRows.join(', '))}</li>`).join('')}</ul></li>`).join('')}</ul>` : '<summary>В выбранном периоде нет дат апдейтов</summary>';
   }
   function changed() { ui.page = 0; render(); updateUrl(); }
   function bind() {

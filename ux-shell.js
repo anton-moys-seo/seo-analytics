@@ -31,6 +31,167 @@
   };
   const icon = (name, cls = 'ux-ico') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
+  const URL_KEYS = {
+    leads: ['lead', 'page', 'grain', 'from', 'to', 'direction', 'directionGrain', 'directionFrom', 'directionTo'],
+    media: ['project', 'section', 'grain', 'from', 'to', 'plan', 'planView'],
+    recovery: ['page', 'engine', 'grain', 'from', 'to', 'compare', 'group', 'sort', 'dir', 'tablePage'],
+    updates: ['month', 'article', 'q', 'window', 'grain', 'tail', 'from', 'to', 'focusEvent', 'sort', 'dir', 'page'],
+    'updates-all': ['month', 'section', 'article', 'q', 'status', 'window', 'grain', 'from', 'to', 'sort', 'dir', 'page', 'event'],
+    experiment: ['brand', 'product', 'metric', 'grain', 'win', 'from', 'to'],
+    'products-sf-cd': ['ps_school', 'ps_page', 'ps_engine', 'ps_metric', 'ps_grain', 'ps_from', 'ps_to', 'ps_focus'],
+    'plan-2027': ['brand', 'feed', 'channel', 'from'],
+  };
+  const owner = (view) => view === 'forecast' ? 'leads' : view;
+  const keysFor = (view) => URL_KEYS[owner(view)] || [];
+  const contextKey = (view) => `ctx_${owner(view)}`;
+  const viewOf = (url) => url.searchParams.get('view') || 'leads';
+  const readContext = (params, view) => {
+    const raw = params.get(contextKey(view));
+    if (raw == null) return null;
+    try {
+      const value = raw.trim().startsWith('{') ? JSON.parse(raw) : Object.fromEntries(new URLSearchParams(raw));
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+      if (typeof value._filters === 'string') value._filters = JSON.parse(value._filters);
+      return value;
+    } catch (_) { return null; }
+  };
+  const encodeContext = (values) => new URLSearchParams(Object.entries(values)
+    .filter(([, value]) => value != null)
+    .map(([key, value]) => [key, key === '_filters' ? JSON.stringify(value) : value])).toString();
+  const rawReplace = history.replaceState.bind(history), rawPush = history.pushState.bind(history);
+  const extraFilters = { recovery: ['rec-page-search', 'rec-pages-search'], 'products-sf-cd': ['ps-search'] };
+  function remember(url, view) {
+    const values = Object.fromEntries(keysFor(view).map((key) => [key, url.searchParams.get(key)]));
+    const previous = readContext(url.searchParams, view);
+    const extras = { ...(previous?._filters || {}) };
+    if (typeof state !== 'undefined' && state.view === view) {
+      for (const id of extraFilters[view] || []) if (doc.getElementById(id)) {
+        const value = doc.getElementById(id).value;
+        if (value) extras[id] = value; else delete extras[id];
+      }
+    }
+    if (Object.keys(extras).length) values._filters = extras;
+    url.searchParams.set(contextKey(view), encodeContext(values));
+  }
+  function applyContext(url, view) {
+    const saved = readContext(url.searchParams, view);
+    if (saved) for (const key of keysFor(view)) {
+      if (saved[key] == null) url.searchParams.delete(key); else url.searchParams.set(key, String(saved[key]));
+    }
+    return saved;
+  }
+  function viewUrl(view, path) {
+    const url = new URL(location.href), from = viewOf(url);
+    remember(url, from);
+    for (const savedView of Object.keys(URL_KEYS)) {
+      if (url.searchParams.get(contextKey(savedView))?.startsWith('{')) {
+        const saved = readContext(url.searchParams, savedView);
+        if (saved) url.searchParams.set(contextKey(savedView), encodeContext(saved));
+      }
+    }
+    if (owner(from) !== owner(view) && view !== 'products-sf-cd') for (const key of keysFor(from)) url.searchParams.delete(key);
+    if (!applyContext(url, view) && owner(from) !== owner(view)) {
+      for (const key of keysFor(view)) url.searchParams.delete(key);
+    }
+    if (view === 'plan-2027') url.searchParams.set('returnView', from);
+    url.searchParams.set('view', view);
+    if (path) url.pathname = new URL(path, url).pathname;
+    return url;
+  }
+  let restoringFilters = false;
+  function writeUrl(data, title, href) {
+    if (href == null) return rawReplace(data, title, href);
+    const next = new URL(href, location.href), before = new URL(location.href);
+    if (next.origin !== before.origin || next.pathname !== before.pathname) return rawReplace(data, title, href);
+    if (restoringFilters) return;
+    const target = viewOf(next), merged = new URL(before);
+    if (data?.round3Global) for (const key of ['wc_panel', 'wc_delta', 'wc_metric']) merged.searchParams.delete(key);
+    if (typeof state !== 'undefined' && state.data && state.view !== target) return;
+    if (viewOf(before) !== target) remember(merged, viewOf(before));
+    for (const key of keysFor(target)) merged.searchParams.delete(key);
+    for (const key of new Set(next.searchParams.keys())) {
+      merged.searchParams.delete(key);
+      for (const value of next.searchParams.getAll(key)) merged.searchParams.append(key, value);
+    }
+    merged.hash = before.hash;
+    rawReplace(data, title, merged.href);
+    window.dispatchEvent(new Event('dashboardurlchange'));
+  }
+  const initialUrl = new URL(location.href), initialView = viewOf(initialUrl);
+  if (!keysFor(initialView).some((key) => initialUrl.searchParams.has(key))) {
+    applyContext(initialUrl, initialView);
+    rawReplace(null, '', initialUrl.href);
+  }
+  const pendingRestore = new Map(), ready = {};
+  let restoreRevision = 0, initialRestorePending = true, editRevision = 0;
+  const EDIT = ['select', 'input', 'label', '[data-brand]', '[data-product]', '[data-lead]'].map((s) => `.dashboard-section ${s}`).join();
+  for (const type of ['input', 'change', 'click']) doc.addEventListener(type, (event) => { if (!restoringFilters && event.target.closest?.(EDIT)) editRevision++; }, true);
+  const experimentControls = { product: 'exp-product', metric: 'exp-metric', win: 'exp-window', grain: 'exp-granularity', from: 'exp-date-from', to: 'exp-date-to' };
+  doc.addEventListener('DOMContentLoaded', () => {
+    for (const [view, name] of [['recovery', 'initRecovery'], ['experiment', 'initExperiment']]) {
+      const init = window[name];
+      if (init) window[name] = (...args) => (ready[view] = Promise.resolve(init(...args)));
+    }
+  });
+  async function restoreView(view) {
+    const snapshot = pendingRestore.get(view);
+    pendingRestore.delete(view);
+    const params = snapshot || (initialRestorePending && view === initialView ? initialUrl.searchParams : null);
+    if (!params) return;
+    if (view === initialView) initialRestorePending = false;
+    const saved = readContext(params, view) || {};
+    const revision = ++restoreRevision, edits = editRevision;
+    await Promise.resolve(); // app.init starts eager modules after its first activateView.
+    await ready[view];
+    const keep = () => { if (snapshot && edits === editRevision && typeof state !== 'undefined' && state.view !== view && !pendingRestore.has(view)) pendingRestore.set(view, snapshot); };
+    if (typeof state === 'undefined' || state.view !== view || revision !== restoreRevision || edits !== editRevision) return keep();
+    const ensure = { 'products-sf-cd': 'ensureProductsSfCd', updates: 'ensureUpdates', 'updates-all': 'ensureUpdatesAll' }[view];
+    if (ensure) await window[ensure]?.();
+    if (state.view !== view || revision !== restoreRevision || edits !== editRevision) return keep();
+    restoringFilters = true;
+    try {
+      const change = (id, value) => {
+        const el = doc.getElementById(id);
+        if (!el || value == null) return;
+        if (el.tagName === 'SELECT' && ![...el.options].some((o) => o.value === value)) return;
+        if (el.type === 'date' && value && (!/^\d{4}-\d\d-\d\d$/.test(value) || new Date(Date.parse(value) || 0).toISOString().slice(0, 10) !== value || value < el.min || (el.max && value > el.max))) return;
+        if (el.type === 'checkbox') el.checked = value === '1'; else el.value = value;
+        el.dispatchEvent(new Event(el.type === 'search' ? 'input' : 'change', { bubbles: true }));
+      };
+      for (const id of extraFilters[view] || []) change(id, saved._filters?.[id] || '');
+      const restore = { recovery: 'restoreRecoveryUrl', updates: 'restoreUpdatesUrl' }[view];
+      if (restore && window[restore]) window[restore](params);
+      else if (snapshot && view === 'experiment') {
+        window.renderExperiment?.();
+        if (params.get('brand')) $(`#exp-brand-tabs [data-brand="${CSS.escape(params.get('brand'))}"]`)?.click();
+        for (const [key, id] of Object.entries(experimentControls)) change(id, params.get(key));
+      }
+      if (snapshot && view === 'updates-all') {
+        const url = new URL(location.href);
+        for (const key of keysFor(view)) {
+          if (!params.has(key)) url.searchParams.delete(key); else url.searchParams.set(key, params.get(key));
+        }
+        rawReplace(null, '', url.href);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    } finally { restoringFilters = false; }
+    if (state.view === view && typeof updateUrl === 'function') updateUrl();
+  }
+  window.DashboardUrl = {
+    viewUrl, readContext, replace: writeUrl,
+    navigate(view) {
+      const url = viewUrl(view);
+      pendingRestore.set(view, new URLSearchParams(url.search));
+      rawPush(null, '', url.href);
+    },
+    restore: restoreView,
+  };
+  window.addEventListener('popstate', (event) => { if (event.isTrusted) location.reload(); });
+  doc.addEventListener('input', (event) => {
+    if (!Object.values(extraFilters).flat().includes(event.target.id) || restoringFilters) return;
+    queueMicrotask(() => { const url = new URL(location.href); remember(url, viewOf(url)); rawReplace(null, '', url.href); syncHrefs(); });
+  });
+
   const tabText = (view) => ($(`.section-tabs [data-target="${view}"]`)?.textContent || '').trim();
   const afterColon = (text, fallback) => {
     const part = text.includes(':') ? text.split(':').slice(1).join(':').trim() : '';
@@ -50,6 +211,7 @@
     { id: 'media', title: 'Медиатрафик', tone: 'mint', items: [
       { view: 'media', label: 'Трафик', hint: 'SEO и прямой трафик, редакции', icon: 'traffic' },
       { view: 'recovery', label: 'Мониторинг метатегов', hint: 'Когорта страниц до и после', icon: 'tags' },
+      { view: 'updates', label: 'Апдейты', hint: 'Статьи: трафик до и после обновления', icon: 'refresh' },
       { view: 'updates-all', label: 'Апдейты ALL', hint: 'Все апдейты: трафик, позиции, сигналы', icon: 'stack' },
     ] },
     { id: 'experiment', title: 'Эксперименты', tone: 'pink', items: [
@@ -136,7 +298,7 @@
     <div class="ux-top-tools">
       <span class="ux-fresh" role="status" aria-live="polite">${icon('clock')}<span class="ux-fresh-text">Загрузка данных</span></span>
       <button class="ux-tool" type="button" data-open-palette aria-label="Найти раздел">${icon('search')}<span>Разделы</span></button>
-      <button class="ux-tool ux-tool-primary" type="button" id="ux-copy">${icon('link')}<span>Ссылка</span></button>
+      <button class="ux-tool ux-tool-primary" type="button" id="ux-copy" aria-label="Скопировать ссылку с фильтрами" title="Ссылка даёт доступ к отчёту">${icon('link')}<span>Ссылка</span></button>
     </div>
     <span class="ux-toast" role="status" aria-live="polite"></span>`;
 
@@ -162,10 +324,11 @@
   // --- Переход: клик по существующей кнопке, чтобы URL, фильтры и ленивые загрузки работали как раньше. ---
   const EXTERNAL = Object.fromEntries(ITEMS.filter((it) => it.href).map((it) => [it.view, it.href]));
   function go(view) {
-    if (EXTERNAL[view]) { location.href = EXTERNAL[view] + location.hash; return; }
+    if (EXTERNAL[view]) { location.href = viewUrl(view, EXTERNAL[view]).href; return; }
     const btn = $(`.nested-tab[data-target="${view}"]:not([data-media-results])`) || $(`[data-target="${view}"]`);
-    if (!btn) return;
-    btn.click();
+    if (btn) btn.click();
+    else if (typeof activateView === 'function') activateView(view);
+    else return;
     closeDrawer();
     window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
@@ -178,19 +341,20 @@
     e.preventDefault();
     go(link.dataset.view);
   });
-  // Сохраняем сериализованные фильтры и #fragment; меняем только целевой view.
-  const syncHrefs = () => $$('.ux-link', sidebar).forEach((a) => {
-    if (a.dataset.external) { a.href = a.dataset.external + location.hash; return; }
-    const url = new URL(location.href);
-    url.searchParams.set('view', a.dataset.view);
-    a.href = url.href;
-  });
-  // Ждём штатных обработчиков фильтров/updateUrl, не подменяя history или состояние приложения.
+  const syncHrefs = () => {
+    $$('.ux-link', sidebar).forEach((a) => { a.href = viewUrl(a.dataset.view, a.dataset.external).href; });
+    $$('a[data-keep-hash]').forEach((a) => {
+      const url = new URL(a.getAttribute('href'), location.href);
+      const target = url.pathname.endsWith('/plan-2027.html') ? 'plan-2027' : url.searchParams.get('view');
+      if (target) a.href = viewUrl(target, url.pathname).href;
+    });
+  };
   const deferHrefs = () => queueMicrotask(syncHrefs);
   ['input', 'change', 'click'].forEach((type) => doc.addEventListener(type, deferHrefs));
-  ['pointerdown', 'contextmenu', 'focusin'].forEach((type) => sidebar.addEventListener(type, syncHrefs, true));
+  ['pointerdown', 'contextmenu', 'focusin'].forEach((type) => doc.addEventListener(type, syncHrefs, true));
   window.addEventListener('popstate', deferHrefs);
   window.addEventListener('hashchange', deferHrefs);
+  window.addEventListener('dashboardurlchange', deferHrefs);
 
   function currentView() {
     return $('.dashboard-section.active')?.id || 'leads';
@@ -355,5 +519,19 @@
     toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2600);
   });
 
+  function revealSection(event) {
+    const control = event.target.closest('[data-reveal]');
+    if (!control || (event.type === 'keydown' && !['Enter', ' '].includes(event.key))) return;
+    if (event.type === 'keydown' && control.tagName.toLowerCase() === 'button') return;
+    const target = doc.getElementById(control.dataset.reveal);
+    if (!target) return;
+    event.preventDefault();
+    for (let parent = target; parent; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true;
+    const focus = target.tagName === 'DETAILS' ? target.querySelector('summary') : target;
+    if (!focus.matches('a[href],button,input,select,textarea,summary,[tabindex]')) focus.setAttribute('tabindex', '-1');
+    focus.focus({ preventScroll: true }); target.scrollIntoView({ block: 'start', behavior: 'instant' });
+  }
+  doc.addEventListener('click', revealSection);
+  doc.addEventListener('keydown', revealSection);
   skip.addEventListener('click', (e) => { e.preventDefault(); main.setAttribute('tabindex', '-1'); main.focus(); });
 })();

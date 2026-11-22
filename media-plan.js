@@ -5,6 +5,7 @@
   'use strict';
   const TOTAL = 'Все /media/';
   const plan = { data: null, failed: false };
+  let meterScale = 2; // Display-only, shared by every normalized meter in the current view.
   const $ = (sel) => document.querySelector(sel);
   const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
   const MONTH_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
@@ -36,12 +37,19 @@
   function corridorPosition(fact, base, fav) {
     return fav > base ? (fact - base) / (fav - base) : null;
   }
-  function meter(fact, base, fav, compact = false) {
+  function comparisonScale(rows) {
+    const values = rows.filter(Boolean).flatMap((r) => [r.fact, r.base, r.fav]).filter(Number.isFinite);
+    return values.length ? Math.max(1, Math.ceil(Math.max(...values))) : null;
+  }
+  function meter(fact, base, fav, compact = false, absoluteScale = null) {
     if (![fact, base, fav].every(Number.isFinite) || base <= 0) return '';
-    const lo = Math.min(base * 0.8, fact), hi = Math.max(fav * 1.15, fact);
-    const pos = (v) => ((v - lo) / (hi - lo) * 100).toFixed(2);
+    const hi = Number.isFinite(absoluteScale) && absoluteScale > 0 ? absoluteScale : base * Math.max(meterScale, fact / base, fav / base);
+    const pos = (v) => (v / hi * 100).toFixed(2);
     const st = status(fact, base, fav);
-    return `<span class="plan-meter${compact ? ' compact' : ''}" aria-hidden="true">`
+    const label = Number.isFinite(absoluteScale) && absoluteScale > 0
+      ? `Общая шкала таблицы от 0 до ${formatInt(hi)} SEO-визитов. Факт ${formatInt(fact)}, база ${formatInt(base)}, благоприятный ${formatInt(fav)}.`
+      : `Шкала от 0 до ${pctf.format(hi / base)} базы; база — 100 %. Факт ${pctf.format(fact / base)}, благоприятный ${pctf.format(fav / base)} базы.`;
+    return `<span class="plan-meter${compact ? ' compact' : ''}" role="img" aria-label="${esc(label)}" title="${esc(label)}">`
       + `<i class="pm-low" style="width:${pos(base)}%"></i>`
       + `<i class="pm-norm" style="left:${pos(base)}%;width:${(pos(fav) - pos(base)).toFixed(2)}%"></i>`
       + `<i class="pm-top" style="left:${pos(fav)}%;right:0"></i>`
@@ -126,23 +134,18 @@
 
   function renderStatus(name, period, summary) {
     const box = $('#plan-status');
+    $('#media-plan-card .plan-controls').before(box);
     if (!summary.started) {
-      box.className = 'plan-status plan-future';
-      box.innerHTML = `<div><span class="plan-status-label">Период ещё не начался</span><p>План на ${esc(period.label.toLowerCase())}: база ${formatInt(summary.fullBase)}, благоприятный сценарий ${formatInt(summary.fullFav)} SEO-визитов.</p></div>`;
+      box.className = 'plan-status plan-future observation section-observation';
+      box.innerHTML = `<div><span class="observation-label">${esc(name)} · ${esc(period.label)}</span><h3>Период ещё не начался</h3><p>SEO-план ${formatPeriod(period.from, period.to)}: база ${formatInt(summary.fullBase)}, благоприятный ${formatInt(summary.fullFav)} визитов. Факта за период пока нет; срез ${formatDate(state.data.meta.asOf)}.</p><button type="button" class="observation-check" data-reveal="plan-months">Проверить план по месяцам</button></div>`;
       return;
     }
     const st = summary.status;
-    const toBase = summary.fact / summary.base - 1, toFav = summary.fact / summary.fav - 1;
-    const span = `${formatDate(period.from).slice(0, 5)}–${formatDate(summary.end).slice(0, 5)}`;
-    const gapText = st.key === 'low'
-      ? `До базы не хватает ${formatInt(summary.base - summary.fact)} визитов.`
-      : st.key === 'norm'
-        ? `До благоприятного сценария осталось ${formatInt(summary.fav - summary.fact)} визитов.`
-        : `Благоприятный сценарий превышен на ${formatInt(summary.fact - summary.fav)} визитов.`;
-    box.className = `plan-status ${st.cls}`;
-    box.innerHTML = `<div class="plan-status-main"><span class="plan-status-label">${esc(st.label)}</span>`
-      + `<p><b>${esc(name)}</b> · ${span} · ${summary.days} из ${summary.totalDays} дн. Факт ${formatInt(summary.fact)}: ${signedPct(toBase)} к базе, ${signedPct(toFav)} к благоприятному. ${gapText}</p></div>`
-      + `<div class="plan-status-meter">${meter(summary.fact, summary.base, summary.fav)}<div class="pm-legend"><span>База ${formatCompact(summary.base)}</span><span>Благоприятный ${formatCompact(summary.fav)}</span></div></div>`;
+    box.className = `plan-status observation section-observation ${st.cls}`;
+    box.innerHTML = `<div class="plan-status-main"><span class="observation-label">${esc(name)} · только SEO · ${esc(period.label)}</span><h3>${esc(st.label)}</h3>`
+      + `<p>Факт ${formatInt(summary.fact)}; норма ${formatInt(summary.base)}–${formatInt(summary.fav)} визитов за ${formatPeriod(period.from, summary.end)}. ${summary.days} из ${summary.totalDays} дн.${summary.complete ? ' Период завершён.' : ' Период неполный: факт и норма только на одну дату, без будущих дней.'}</p>`
+      + '<button type="button" class="observation-check" data-reveal="plan-months">Проверить месяцы</button> · <button type="button" class="observation-check" data-reveal="plan-method">Методика</button></div>'
+      + `<div class="plan-status-meter">${meter(summary.fact, summary.base, summary.fav)}<div class="pm-legend"><span>0 %</span><span>${pctf.format(meterScale)} базы</span></div><p class="chart-instruction">Все мини-шкалы: 0–${pctf.format(meterScale)} базы. База — 100 %; чёрная риска — факт. Зелёный коридор — от базы до благоприятного. Общий трафик сюда не входит.</p></div>`;
   }
 
   function renderKpis(period, summary) {
@@ -203,14 +206,14 @@
       const active = key === state.planPeriod ? ' plan-row-active' : '';
       const cls = `${total ? 'direction-total' : ''}${active}`;
       if (!sm.started) {
-        return `<tr class="${cls}" data-plan-period="${key}"><td>${esc(period.label)}</td><td>—</td><td>${formatInt(sm.fullBase)}</td><td>${formatInt(sm.fullFav)}</td><td>—</td><td>—</td><td><span class="plan-badge plan-future">Впереди</span></td><td>—</td></tr>`;
+        return `<tr class="${cls}" data-plan-period="${key}" tabindex="0"><td>${esc(period.label)}</td><td>—</td><td>${formatInt(sm.fullBase)}</td><td>${formatInt(sm.fullFav)}</td><td>—</td><td>—</td><td><span class="plan-badge plan-future">Впереди</span></td><td>—</td></tr>`;
       }
       const partial = sm.complete ? '' : `<span class="plan-sub">из ${formatInt(sm.fullBase)}</span>`;
       const partialFav = sm.complete ? '' : `<span class="plan-sub">из ${formatInt(sm.fullFav)}</span>`;
       const label = sm.complete ? period.label : `${period.label}<span class="plan-sub">по ${formatDate(sm.end)}</span>`;
       const proj = sm.complete ? '<span class="plan-sub">период завершён</span>'
         : `${formatInt(sm.projection)} ${badge(sm.projection, sm.fullBase, sm.fullFav)}`;
-      return `<tr class="${cls}" data-plan-period="${key}"><td>${label}</td><td>${formatInt(sm.fact)}</td>`
+      return `<tr class="${cls}" data-plan-period="${key}" tabindex="0"><td>${label}</td><td>${formatInt(sm.fact)}</td>`
         + `<td>${formatInt(sm.base)}${partial}</td><td>${formatInt(sm.fav)}${partialFav}</td>`
         + `<td>${signedPct(sm.fact / sm.base - 1)}</td><td>${signedPct(sm.fact / sm.fav - 1)}</td>`
         + `<td>${badge(sm.fact, sm.base, sm.fav)}${meter(sm.fact, sm.base, sm.fav, true)}</td><td>${proj}</td></tr>`;
@@ -227,12 +230,22 @@
       + `<td>${sm.complete ? '—' : `${formatInt(sm.projection)} ${badge(sm.projection, sm.fullBase, sm.fullFav)}`}</td></tr>`).join('');
   }
 
+  function clearResults() {
+    meterScale = 2;
+    ['#plan-status', '#plan-kpis', '#plan-chart', '#plan-months', '#plan-sections'].forEach((id) => $(id)?.replaceChildren());
+    ['#plan-chart-note', '#plan-months-note', '#plan-sections-note', '#plan-method'].forEach((id) => { const el = $(id); if (el) el.textContent = ''; });
+    if ($('#plan-status')) $('#plan-status').className = 'plan-status';
+    $('#tooltip')?.classList.remove('visible');
+  }
+
   function render() {
     const card = $('#media-plan-card');
     if (!card || !state.data) return;
     if (state.mediaId !== 'skillbox-media' || (!plan.data && !plan.failed)) { card.hidden = true; return; }
     card.hidden = false;
     if (!plan.data) {
+      clearResults();
+      $('#plan-status').hidden = true;
       $('#plan-body').hidden = true;
       $('#plan-no-section').hidden = false;
       $('#plan-no-section').textContent = 'План SEO-трафика недоступен: файл media-plan.json не опубликован.';
@@ -240,8 +253,7 @@
     }
     if (!state.planPeriod || !(state.planPeriod === 'q4' || plan.data.meta.months.includes(state.planPeriod))) state.planPeriod = defaultPeriod(state.data.meta.asOf);
     if (!['cum', 'day', 'week'].includes(state.planView)) state.planView = 'cum';
-    const options = sectionOptions();
-    const select = $('#plan-section');
+    const options = sectionOptions(), select = $('#plan-section');
     populateSelect(select, options, options.includes(state.mediaSection) ? state.mediaSection : '');
     $('#plan-period').value = state.planPeriod;
     $('#plan-view').value = state.planView;
@@ -249,13 +261,20 @@
     const noPlan = !series(state.mediaSection);
     $('#plan-no-section').hidden = !noPlan;
     $('#plan-body').hidden = noPlan;
+    $('#plan-status').hidden = noPlan;
     if (noPlan) {
+      clearResults();
       $('#plan-no-section').textContent = `Для редакции «${state.mediaSection}» в прогнозе нет отдельного плана (она входит в служебные вложенности). Выберите «${TOTAL}» или другую редакцию.`;
       select.value = '';
       return;
     }
+    $('#plan-no-section').textContent = '';
     const name = state.mediaSection;
     const summary = periodSummary(name, period.from, period.to);
+    const meterSummaries = [summary,
+      ...[...plan.data.meta.months, 'q4'].map((key) => { const p = periodBounds(key); return periodSummary(name, p.from, p.to); }),
+      ...options.filter((n) => n !== TOTAL).map((n) => periodSummary(n, period.from, period.to))];
+    meterScale = Math.ceil(Math.max(1.25, ...meterSummaries.filter((sm) => sm.started && sm.base > 0).flatMap((sm) => [sm.fact / sm.base, sm.fav / sm.base])) * 4) / 4;
     renderStatus(name, period, summary);
     renderKpis(period, summary);
     renderChart(name, period);
@@ -273,10 +292,12 @@
     });
     $('#plan-period').addEventListener('change', (e) => { state.planPeriod = e.target.value; render(); updateUrl(); });
     $('#plan-view').addEventListener('change', (e) => { state.planView = e.target.value; render(); updateUrl(); });
-    $('#plan-months').addEventListener('click', (e) => {
+    const pickPeriod = (e) => {
       const row = e.target.closest('[data-plan-period]');
-      if (row) { state.planPeriod = row.dataset.planPeriod; render(); updateUrl(); }
-    });
+      if (row) { state.planPeriod = row.dataset.planPeriod; render(); updateUrl(); $('#plan-months [data-plan-period="' + CSS.escape(state.planPeriod) + '"]')?.focus({ preventScroll: true }); }
+    };
+    $('#plan-months').addEventListener('click', pickPeriod);
+    $('#plan-months').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickPeriod(e); } });
     const pickSection = (e) => {
       const row = e.target.closest('[data-plan-section]');
       if (!row) return;
@@ -297,7 +318,7 @@
   }
 
   window.MediaPlan = {
-    load, setup, render, alignTo, compare, status, badge, meter, signedPct,
+    load, setup, render, alignTo, compare, status, badge, meter, signedPct, comparisonScale,
     has: (name) => Boolean(series(name)),
     ready: () => Boolean(plan.data),
   };

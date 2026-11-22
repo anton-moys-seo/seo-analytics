@@ -1,21 +1,15 @@
-/*
- * ux-shell.css — визуальный слой SEO Dashboard. Подключается ПОСЛЕДНИМ из CSS.
- * Оболочка (меню, верхняя панель) включается только при html.ux-shell, который ставит ux-shell.js:
- * без скрипта страница остаётся в исходной навигации. Цвета и отступы — из токенов Skillbox.
- */
 :root{
   --space-1:4px;--space-5:20px;--space-10:40px;--space-12:48px;
   --radius-xs:8px;--radius-pill:999px;
   --field-border:#D9D9D9;--placeholder:#8D8D8D;
   --lime:#D8FF28;--mint:#B8E8B6;--peach:#FFC38E;--pink:#F7C8FF;--lavender:#968BAB;
   --good:#B8E8B6;--mid:#FFE28A;--low:#F7C6C6;
-  --sidebar-w:288px;--topbar-h:64px;
+  --sidebar-w:248px;--topbar-h:64px;
   --ease:cubic-bezier(.22,1,.36,1);--fast:160ms;--normal:220ms;
 }
 body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .kpi-value,td,.mini-kpi b,.rec-growth-count,.ps-kpi-value,.ux-fresh{font-variant-numeric:tabular-nums}
 
-/* ========== Оболочка ========== */
 .ux-skip{position:fixed;left:var(--space-4);top:-80px;z-index:300;background:var(--text);color:#FFFFFF;border-radius:var(--radius-sm);padding:var(--space-3) var(--space-4);font-weight:500;text-decoration:none}
 .ux-skip:focus{top:var(--space-3)}
 .ux-visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -25,8 +19,7 @@ html.ux-shell .site-header,html.ux-shell .hero,html.ux-shell .section-tabs,html.
 html.ux-shell .page-shell{padding:var(--space-6) var(--space-8) var(--space-12);max-width:1360px}
 html.ux-shell footer{max-width:1360px;font-weight:400}
 
-/* Боковое меню */
-.ux-sidebar{position:fixed;z-index:60;top:var(--space-3);left:var(--space-3);bottom:var(--space-3);width:calc(var(--sidebar-w) - var(--space-3));display:flex;flex-direction:column;gap:var(--space-4);padding:var(--space-6) var(--space-4) var(--space-4);background:var(--surface);border-radius:var(--radius-lg);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.ux-sidebar{position:fixed;z-index:60;top:var(--space-3);left:var(--space-3);bottom:var(--space-3);width:calc(var(--sidebar-w) - var(--space-3));display:flex;flex-direction:column;gap:var(--space-4);padding:var(--space-6) var(--space-4) var(--space-4);background:var(--bg);border-radius:var(--radius-lg);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 .ux-brand{display:flex;align-items:center;justify-content:space-between;padding:0 var(--space-2)}
 .ux-brand img{display:block;width:112px;height:auto}
 .ux-report{margin:calc(-1 * var(--space-2)) 0 0;padding:0 var(--space-2);font-size:14px;line-height:1.35;font-weight:500}
@@ -52,7 +45,6 @@ html.ux-shell footer{max-width:1360px;font-weight:400}
 .ux-sidebar .ux-close{display:none}
 .ux-top-logo{display:none}
 
-/* Верхняя панель — закреплена (согласовано с владельцем дашборда) */
 .ux-topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:var(--space-4);min-height:var(--topbar-h);padding:var(--space-2) var(--space-8);background:var(--bg)}
 .ux-crumbs{display:flex;align-items:center;gap:var(--space-2);min-width:0;margin:0;padding:0;list-style:none;font-size:14px;font-weight:500}
 .ux-crumbs li{display:flex;align-items:center;gap:var(--space-2);white-space:nowrap}
@@ -73,7 +65,6 @@ html.ux-shell footer{max-width:1360px;font-weight:400}
 .ux-toast.is-visible{opacity:1;transform:none}
 .ux-backdrop{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.4)}
 
-/* Поиск разделов */
 .ux-palette{width:min(560px,calc(100vw - 32px));max-height:min(560px,calc(100vh - 64px));margin:12vh auto auto;padding:0;border:0;border-radius:var(--radius-lg);background:var(--bg);color:var(--text)}
 .ux-palette::backdrop{background:rgba(0,0,0,.45)}
 .ux-palette-box{display:flex;flex-direction:column;margin:0}
@@ -87,7 +78,6 @@ html.ux-shell footer{max-width:1360px;font-weight:400}
 .ux-palette-empty{cursor:default;font-size:14px}
 .ux-palette-hint{margin:0;padding:var(--space-3) var(--space-5);font-size:12px;display:flex;gap:var(--space-1);align-items:center;flex-wrap:wrap}
 
-/* Раскладка с меню на широком экране */
 @media (min-width:1101px){
   html.ux-shell body{padding-left:var(--sidebar-w)}
 }
@@ -113,14 +103,12 @@ html.ux-shell footer{max-width:1360px;font-weight:400}
   .ux-topbar .ux-tool[data-open-palette]{display:none}
 }
 
-/* ========== Заголовки разделов ========== */
 .section-heading{margin-bottom:var(--space-6)}
 .section-heading h2{font-size:44px;line-height:1.05;font-weight:700;letter-spacing:-.03em;margin-top:var(--space-3)}
-html.ux-shell .section-heading .eyebrow{display:inline-flex;align-items:center;min-height:28px;padding:0 var(--space-3);border-radius:var(--radius-pill);background:var(--tone,var(--surface));font-size:13px}
+html.ux-shell .section-heading .eyebrow{display:inline-flex;align-items:center;min-height:28px;padding:var(--space-1) var(--space-3);border-radius:var(--radius-sm);background:var(--tone,var(--surface));font-size:13px}
 html[data-ux-tone="lime"]{--tone:var(--lime)}html[data-ux-tone="mint"]{--tone:var(--mint)}html[data-ux-tone="peach"]{--tone:var(--peach)}html[data-ux-tone="pink"]{--tone:var(--pink)}
 @media (max-width:640px){.section-heading h2{font-size:30px}}
 
-/* ========== Карточки KPI ========== */
 .kpi-grid{gap:var(--space-3)}
 .kpi-card{position:relative;min-height:156px;justify-content:flex-start;gap:var(--space-3);overflow:hidden}
 .kpi-label{font-size:14px;font-weight:500}
@@ -140,7 +128,6 @@ html[data-ux-tone="lime"]{--tone:var(--lime)}html[data-ux-tone="mint"]{--tone:va
 .share-meter i{display:block;height:100%;border-radius:inherit;background:var(--primary)}
 @media (max-width:640px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2)}.kpi-grid>.kpi-card.primary{grid-column:1/-1}.kpi-card{min-height:0;padding:var(--space-4);gap:var(--space-2);border-radius:var(--radius-sm)}.kpi-value{font-size:26px}.kpi-card.primary .kpi-value{font-size:34px}.kpi-label,.kpi-caption{font-size:12px}}
 
-/* Мини-KPI — компактные плитки */
 .mini-kpis{gap:var(--space-2);margin:0 0 var(--space-6)}
 .mini-kpi{display:flex;flex-direction:column;gap:var(--space-1);padding:var(--space-3) var(--space-4);border-radius:var(--radius-sm);background:var(--bg);font-size:13px;line-height:1.35;font-weight:500}
 .mini-kpi b{font-size:22px;line-height:1.1;margin-left:0;font-weight:600;letter-spacing:-.02em}
@@ -149,7 +136,6 @@ html[data-ux-tone="lime"]{--tone:var(--lime)}html[data-ux-tone="mint"]{--tone:va
 #forecast-kpis .mini-kpi:first-child{background:var(--primary);color:#FFFFFF}
 #forecast-kpis .mini-kpi b{font-size:32px}
 
-/* ========== Шкала выполнения ========== */
 .exec-cell{display:inline-flex;flex-direction:column;align-items:stretch;gap:6px;min-width:96px}
 .exec-badge{min-width:0}
 .exec-meter{position:relative;display:block;height:6px;border-radius:var(--radius-pill);background:var(--bg)}
@@ -162,8 +148,9 @@ html[data-ux-tone="lime"]{--tone:var(--lime)}html[data-ux-tone="mint"]{--tone:va
 .kpi-card .exec-meter{height:10px;background:rgba(255,255,255,.75)}
 .kpi-card .exec-meter i{background:var(--text)}
 .kpi-card .exec-meter b{top:-4px;bottom:-4px}
+.exec-scale{position:relative;display:block;height:16px;margin-top:6px;font-size:12px;line-height:16px}.exec-scale span{position:absolute;top:0}.exec-scale span:nth-child(2){left:66.667%;transform:translateX(-50%)}.exec-scale span:last-child{right:0}.exec-scale i{font-style:normal}@media (max-width:519px){.exec-scale i{display:none}}
+.exec-key{display:inline-flex;align-items:center;gap:6px;font-size:12px}.exec-key .exec-meter{width:48px;background:var(--surface)}
 
-/* ========== Графики ========== */
 .chart-card{padding:var(--space-8)}
 .chart-card,.table-card{border-radius:var(--radius-lg)}
 .chart .grid-line{stroke:#FFFFFF;stroke-width:1.5}
@@ -176,12 +163,14 @@ html[data-ux-tone="lime"]{--tone:var(--lime)}html[data-ux-tone="mint"]{--tone:va
 .chart .gap-above{fill:var(--mint);opacity:.9}
 .chart .gap-below{fill:var(--low);opacity:.9}
 .chart .last-dot{fill:#3D3BFF;stroke:#FFFFFF;stroke-width:3}
-.chart .last-value rect{fill:#3D3BFF}
-.chart .last-value text{fill:#FFFFFF;font-family:Graphik,sans-serif;font-size:12px;font-weight:600}
+.chart .last-value rect{fill:#FFFFFF;stroke:#3D3BFF;stroke-width:2}
+.chart .last-value text{fill:#000000;font-family:Graphik,sans-serif;font-size:12px;font-weight:600}
 .chart .hover-line{stroke-dasharray:3 4}
 .chart .point-primary{stroke:#FFFFFF;stroke-width:2}
-.chart .exp-event-line,.chart .rec-change-line{stroke:#3D3BFF;stroke-width:2;stroke-dasharray:5 5}
-.chart .exp-event-label,.chart .rec-change-label{fill:#3D3BFF;font-weight:600}
+.chart .exp-event-line{stroke:var(--text);stroke-width:2;stroke-dasharray:5 5}
+.chart .exp-event-label{fill:var(--text);font-weight:500}
+.chart .exp-event-range{stroke:var(--text);stroke-width:2;fill:none;pointer-events:none}
+.legend-bracket{display:inline-block;width:24px;height:7px;border:2px solid var(--text);border-bottom:0}.chart-groups-note{margin-top:var(--space-2)}
 .legend{gap:var(--space-4);font-size:13px}
 .legend-swatch{display:inline-block;width:16px;height:12px;border-radius:4px}
 .legend-swatch.gap-up{background:var(--mint)}
@@ -196,10 +185,8 @@ html[data-ux-tone="lime"]{--tone:var(--lime)}html[data-ux-tone="mint"]{--tone:va
 .chart-heading-safe h3,.media-chart-heading .chart-copy h3{font-size:26px;line-height:1.2;margin-bottom:var(--space-3)}
 .chart-heading-safe p,.media-chart-heading .chart-copy p{font-size:13px;padding:6px 12px;border-radius:var(--radius-pill)}
 #updates-all .upa-line-traffic,#updates-all .upa-line-gsc{stroke-width:2.5}
-#updates-all .upa-event{stroke:#3D3BFF;opacity:.35}
 @media (max-width:640px){.chart-card{padding:var(--space-5) var(--space-4)}}
 
-/* ========== Панели фильтров ========== */
 .chart-filter-bar{border-radius:var(--radius-md);padding:var(--space-4) var(--space-5);gap:var(--space-4)}
 html.ux-shell .chart-filter-bar{top:calc(var(--topbar-h) + var(--space-3))}
 .filter-index{flex-basis:32px;height:32px;font-size:14px}
@@ -220,7 +207,6 @@ html.ux-shell .chart-filter-bar{top:calc(var(--topbar-h) + var(--space-3))}
   .chart-controls .date-control{grid-column:auto;min-width:0;width:100%}
 }
 
-/* ========== Таблицы ========== */
 .table-card{padding:0}
 .table-card>.card-heading{padding:0}
 table{border-spacing:0 3px}
@@ -243,21 +229,18 @@ table:has(#lead-summary) th:nth-child(5),table:has(#direction-summary) th:nth-ch
   .table-wrap table th:first-child{z-index:3}
 }
 
-/* ========== Кнопки, ссылки, вкладки внутри разделов ========== */
 .rec-csv-button,.rec-pager button,#updates-all .upa-button,#upd-xlsx,.link-button{transition:background var(--fast) var(--ease),color var(--fast) var(--ease)}
 .rec-csv-button:hover:not(:disabled),.rec-pager button:hover:not(:disabled),#updates-all .upa-button:hover:not(:disabled){background:var(--surface-dark);color:#FFFFFF}
 :is(button,a,summary,select,input,[tabindex]):focus-visible{outline:3px solid var(--primary);outline-offset:2px}
 .ux-link:focus-visible,.ux-tool:focus-visible,.ux-icon-btn:focus-visible,.ux-search-trigger:focus-visible{outline:3px solid var(--text);outline-offset:2px}
 .ux-link.is-active:focus-visible{outline-color:var(--text)}
 
-/* Плашки-уведомления без «полосы слева» */
 #products-sf-cd .ps-notice{border-left:0;border-radius:var(--radius-md);padding:var(--space-4) var(--space-5)}
 #products-sf-cd .ps-error{border-left:0;padding-left:0}
 #upa-table .upa-signal-severe td:first-child,#upa-table .upa-signal-warning td:first-child{border-left:0}
 #upa-table .upa-signal-severe td:first-child{box-shadow:none}
 .updates-status,#updates-all .upa-notice{border-radius:var(--radius-md)}
 
-/* Методология — спокойнее основного содержимого */
 .rec-method,#updates-all .upa-method{background:var(--surface)}
 .forecast-method-list{padding:var(--space-5) var(--space-8) var(--space-6) var(--space-12)}
 
@@ -274,14 +257,12 @@ html.ux-shell footer{padding-left:var(--space-8)}
 .ux-fresh{min-width:0;max-width:100%;overflow:hidden}
 .ux-fresh-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ux-tool,.ux-icon-btn,.ux-top-logo{flex-shrink:0}
-/* Фильтры сеткой: все поля в одну строку, если хватает ширины */
 .chart-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-3);align-items:end}
 .chart-controls>*{min-width:0!important;max-width:none!important;width:auto}
 .chart-controls .project-control{grid-column:span 2}
 .chart{min-height:0}
 .chart:empty{min-height:240px}
 @media (max-width:640px){.chart-controls .project-control{grid-column:1/-1}}
-/* Продукты SF/CD: длинная таблица в своём окне прокрутки с закреплённой шапкой, как в остальных разделах */
 #products-sf-cd .ps-table-wrap{max-height:72vh;overflow:auto;border-radius:var(--radius-md)}
 #products-sf-cd .ps-table-wrap th{position:sticky;top:0;z-index:2;background:#000000;color:#FFFFFF;font-weight:500;border-bottom:0}
 #products-sf-cd .ps-table-wrap th:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
@@ -291,18 +272,16 @@ html.ux-shell footer{padding-left:var(--space-8)}
 #products-sf-cd .ps-kpi{border-radius:var(--radius-md);min-height:140px}
 #products-sf-cd .ps-kpi-value{font-size:36px;letter-spacing:-.02em}
 
-/* Требует внимания */
 .attention{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4) var(--space-6);flex-wrap:wrap;margin:0 0 var(--space-4);padding:var(--space-4) var(--space-5);border-radius:var(--radius-md);background:var(--text);color:#FFFFFF}
 .attention-head{min-width:0;flex:1 1 280px}
 .attention-title{margin:0 0 2px;font-size:18px;font-weight:600;letter-spacing:-.01em}
 .attention-note{margin:0;font-size:13px;line-height:1.45}
 .attention-list{display:flex;gap:var(--space-2);flex-wrap:wrap}
-.attention-chip{display:inline-flex;align-items:center;gap:var(--space-3);min-height:44px;padding:0 var(--space-4);border:0;border-radius:var(--radius-pill);color:#000000;font:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:transform var(--fast) var(--ease)}
+.attention-chip{display:inline-flex;align-items:center;gap:var(--space-3);min-height:44px;padding:0 var(--space-4);border:0;border-radius:var(--radius-pill);color:#000000;text-decoration:none;font:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:transform var(--fast) var(--ease)}
 .attention-chip b{font-weight:600}
 .attention-chip.exec-mid{background:var(--mid)}.attention-chip.exec-low{background:var(--low)}
 .attention-chip:hover{transform:translateY(-1px)}
 .attention-chip:focus-visible{outline:3px solid #FFFFFF;outline-offset:2px}
-/* Поиск разделов: фокус на поле, а не на инпуте */
 .ux-palette-field input:focus-visible{outline:none}
 .ux-palette-field:focus-within{background:#EDEDED}
 .ux-palette-field input::-webkit-search-cancel-button{display:none}

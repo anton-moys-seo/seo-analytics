@@ -1,4 +1,3 @@
-/* План SEO-трафика Skillbox Media: коридор «база — благоприятный сценарий». */
 :root{--plan-top:#2FA84F;--plan-top-bg:#9BE0A6;--plan-norm-bg:#DDF5DC;--plan-low:#E5484D;--plan-low-bg:#F7C6C6;--plan-band:rgba(47,168,79,.16)}
 
 .plan-card{background:var(--surface)}
@@ -19,9 +18,6 @@
 .plan-status.plan-norm{border-left-color:var(--plan-top-bg)}
 .plan-status.plan-low{border-left-color:var(--plan-low)}
 .plan-status.plan-future{grid-template-columns:1fr}
-.plan-status-label{display:block;font-size:26px;line-height:1.15;font-weight:600;letter-spacing:-.02em;margin-bottom:6px}
-.plan-status.plan-top .plan-status-label{color:#1B7A35}
-.plan-status.plan-low .plan-status-label{color:#B42328}
 .plan-status p{margin:0;font-size:14px;line-height:1.5}
 
 .plan-meter{position:relative;display:block;height:16px;border-radius:999px;background:var(--plan-low-bg);overflow:visible}
@@ -29,7 +25,7 @@
 .plan-meter .pm-low{left:0;background:var(--plan-low-bg);border-radius:999px 0 0 999px}
 .plan-meter .pm-norm{background:var(--plan-norm-bg)}
 .plan-meter .pm-top{background:var(--plan-top-bg);border-radius:0 999px 999px 0}
-.plan-meter .pm-mark{position:absolute;top:-5px;width:6px;height:26px;margin-left:-3px;border-radius:3px;background:#000000;box-shadow:0 0 0 2px #FFFFFF}
+.plan-meter .pm-mark{position:absolute;top:-5px;width:6px;height:26px;margin-left:-3px;border-radius:3px;background:#000000;outline:2px solid #FFFFFF}
 .plan-meter.compact{display:inline-block;width:84px;height:8px;margin-left:10px;vertical-align:middle}
 .plan-meter.compact .pm-mark{top:-4px;width:4px;height:16px;margin-left:-2px}
 .pm-legend{display:flex;justify-content:space-between;font-size:12px;font-weight:500;margin-top:10px;color:#333333}
@@ -64,10 +60,8 @@
 .direction-total .plan-sub{color:#DDDDDD}
 .plan-table tr[data-plan-period],.plan-section-row{cursor:pointer}
 .plan-table tr[data-plan-period]:hover td,.plan-section-row:hover td{background:#EBEBFF}
-.plan-row-active td{box-shadow:inset 0 2px 0 var(--primary),inset 0 -2px 0 var(--primary)}
-.plan-row-active td:first-child{box-shadow:inset 2px 2px 0 var(--primary),inset 0 -2px 0 var(--primary)}
+.plan-row-active td{outline:1px solid var(--primary);outline-offset:-1px}
 .plan-section-row:focus-visible td{outline:2px solid var(--primary);outline-offset:-2px}
-.plan-cell{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .plan-method{margin:20px 0 0;font-size:13px;line-height:1.5;color:#333333}
 
-@media (max-width:760px){.plan-status{grid-template-columns:1fr}.plan-status-label{font-size:22px}.plan-heading{align-items:flex-start;flex-direction:column}}
+@media (max-width:760px){.plan-status{grid-template-columns:1fr}.plan-heading{align-items:flex-start;flex-direction:column}}

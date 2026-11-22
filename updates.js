@@ -156,6 +156,7 @@
 
   const $ = (selector) => document.querySelector(selector);
   const ui = { data: null, phase: 'loading', initialized: false, pending: null, month: 'all', article: 'all', q: '', window: 28, grain: 'day', from: null, to: null, latest: true, focusEvent: null, sort: 'date', direction: -1, page: 0 };
+  let droppedArticle = false; // UI-пояснение: выбранная статья выпала из выборки и getScope сбросил её на «все»
   const PAGE_SIZE = 20;
   const active = () => typeof state !== 'undefined' && state.view === 'updates';
   const number = (value) => value === null ? '—' : formatNumber(value);
@@ -163,28 +164,42 @@
   function option(select, value, label, selected) {
     const node = document.createElement('option'); node.value = value; node.textContent = label; node.selected = value === selected; select.appendChild(node);
   }
-  function loadState() {
-    const raw = new URLSearchParams(location.search), p = raw.get('view') === 'updates' ? raw : new URLSearchParams();
+  const SORT_KEYS = ['title', 'date', 'pre', 'post', 'n', 'avg', 'delta', 'status'];
+  function loadState(raw = new URLSearchParams(location.search)) {
+    const p = raw.get('view') === 'updates' ? raw : new URLSearchParams();
     ui.month = /^\d{4}-\d{2}$/.test(p.get('month') || '') ? p.get('month') : 'all';
     ui.article = p.get('article') || 'all'; ui.q = p.get('q') || '';
     ui.window = [7, 14, 28].includes(Number(p.get('window'))) ? Number(p.get('window')) : 28;
     ui.grain = ['day', 'week', 'month'].includes(p.get('grain')) ? p.get('grain') : 'day';
     ui.latest = p.get('tail') !== 'custom';
     ui.from = isDate(p.get('from')) ? p.get('from') : null; ui.to = !ui.latest && isDate(p.get('to')) ? p.get('to') : null;
+    ui.focusEvent = isDate(p.get('focusEvent')) ? p.get('focusEvent') : null;
+    ui.sort = SORT_KEYS.includes(p.get('sort')) ? p.get('sort') : 'date';
+    ui.direction = p.get('dir') === 'asc' ? 1 : -1;
+    ui.page = /^\d+$/.test(p.get('page') || '') ? Number(p.get('page')) : 0;
   }
   function updateUrl() {
-    const params = new URLSearchParams({ view: 'updates' });
+    const params = new URLSearchParams(location.search);
+    for (const key of ['month', 'article', 'q', 'window', 'grain', 'tail', 'from', 'to', 'focusEvent', 'sort', 'dir', 'page']) params.delete(key);
+    params.set('view', 'updates');
     if (ui.month !== 'all') params.set('month', ui.month);
     if (ui.article !== 'all') params.set('article', ui.article);
     if (ui.q) params.set('q', ui.q);
+    if (ui.focusEvent) params.set('focusEvent', ui.focusEvent);
+    params.set('sort', ui.sort); params.set('dir', ui.direction === 1 ? 'asc' : 'desc');
+    if (ui.page) params.set('page', ui.page);
     params.set('window', ui.window); params.set('grain', ui.grain); params.set('tail', ui.latest ? 'latest' : 'custom');
     if (ui.from) params.set('from', ui.from);
     if (ui.to) params.set('to', ui.to);
-    history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
+    (window.DashboardUrl?.replace || history.replaceState.bind(history))(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
   }
   function availability() {
     $('#upd-status').hidden = ui.phase === 'ready'; $('#upd-content').hidden = ui.phase !== 'ready';
-    $('#upd-status').textContent = ({ loading: 'Загружаем данные апдейтов.', unavailable: 'Данные апдейтов пока недоступны: не удалось загрузить статьи и SEO-визиты. Анализ появится после загрузки данных источника; остальные разделы работают.', empty: 'Данные апдейтов пока недоступны: в источнике нет статей с датами обновлений и полными днями трафика. Сравнение не рассчитано.' })[ui.phase] || '';
+    $('#upd-status').textContent = ({ loading: 'Загружаем данные апдейтов.', unavailable: 'Данные апдейтов пока недоступны: не удалось загрузить статьи и SEO-визиты. Остальные разделы работают. Повторите загрузку; если не помогло — обновите страницу по полной ссылке.', empty: 'Данные апдейтов пока недоступны: в источнике нет статей с датами обновлений и полными днями трафика. Сравнение не рассчитано.' })[ui.phase] || '';
+    if (ui.phase === 'unavailable') {
+      const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'ux-tool upd-retry'; retry.textContent = 'Повторить загрузку';
+      retry.addEventListener('click', () => init(), { once: true }); $('#upd-status').append(' ', retry);
+    }
   }
   function status(row) {
     if (!row.n && missingHistory(ui.data.meta, row.date)) return `Нет истории Метрики вокруг даты апдейта · 0/${ui.window} дней с каждой стороны · даты из таблицы сохранены`;
@@ -232,6 +247,30 @@
     button.title = `Показать контекст до апдейта и весь доступный хвост по ${formatDate(ui.data.completeDates[ui.data.completeDates.length - 1])}`;
     $('#upd-focus-note').textContent = `В мониторинге только апдейты с 01.05.2026. График по умолчанию заканчивается последним полным днём: ${formatDate(ui.data.completeDates[ui.data.completeDates.length - 1])}; начало — за ${ui.window} дней до ${event ? 'выбранного апдейта' : ui.month === 'all' ? 'начала мониторинга' : 'начала месяца'}. Окно сравнения задаётся отдельно. Даты графика можно менять вручную.`;
   }
+  function renderObservation(scope) {
+    let box = $('#upd-observation');
+    if (!box) {
+      box = document.createElement('article'); box.id = 'upd-observation';
+      box.className = 'observation section-observation'; $('#upd-content').prepend(box);
+    }
+    const event = focusDate(scope);
+    const missingEvent = ui.article !== 'all' && ui.focusEvent && event !== ui.focusEvent;
+    const row = scope.rows.find((r) => event && r.date === event) || scope.rows.slice().sort((a, b) => b.date.localeCompare(a.date) || a.page.id.localeCompare(b.page.id))[0];
+    const context = `${ui.article === 'all' ? `Когорта: ${scope.shown.length} статей` : 'Выбранная статья'} · ${ui.month === 'all' ? 'все месяцы апдейта' : ui.month}`;
+    const fallback = droppedArticle ? '<p class="observation-fallback">Выбранной статьи нет в текущей выборке (месяц, поиск) — показана вся когорта.</p>'
+      : missingEvent && event ? `<p class="observation-fallback">Апдейта ${formatDate(ui.focusEvent)} нет в текущей выборке статьи — показан последний: ${formatDate(event)}.</p>` : '';
+    box.innerHTML = `<span class="observation-label">${escape(context)}</span>${fallback}`;
+    if (!row) {
+      box.innerHTML += '<h3>Нет апдейтов в выбранной выборке</h3><p>Измените месяц, статью или поиск. Отсутствие событий не означает нулевой трафик.</p>';
+      return;
+    }
+    box.innerHTML += `<h3>${escape(classificationLabel(row))} · апдейт ${formatDate(row.date)}</h3>`
+      + `<p>${ui.article === 'all' ? 'Последнее событие в выборке. ' : ''}${row.n ? `SEO-визиты: ${number(row.pre)} → ${number(row.post)} за равные ${row.n} дн. До: ${formatPeriod(row.preFrom, row.preTo)}; после: ${formatPeriod(row.postFrom, row.postTo)}.` : 'Нет доступного парного окна; сравнение не рассчитано.'}</p>`
+      + `<p>${escape(status(row))}. День апдейта исключён; окна не зависят от графика ${formatPeriod(ui.from, ui.to)}. Изменение не доказывает эффект апдейта.</p>`
+      + `<details><summary class="observation-check">Статья и строки источника ↓</summary><p>${escape(row.page.title)}<br>${escape(row.page.url || row.page.path)}<br>Строки источника: ${escape(row.sourceRows?.join(', ') || 'не указаны')}.</p></details>`
+      + '<button type="button" class="observation-check" data-reveal="upd-table">Проверить окна в таблице</button> · <button type="button" class="observation-check" data-reveal="upd-method">Методика</button>';
+  }
+
   function renderKpis(scope, buckets) {
     const mature = scope.rows.filter((r) => r.n > 0), pre = mature.reduce((s, r) => s + r.pre, 0), post = mature.reduce((s, r) => s + r.post, 0);
     const trafficComplete = buckets.length && buckets.every((b) => b.value !== null), visits = trafficComplete ? buckets.reduce((s, b) => s + b.value, 0) : null;
@@ -247,11 +286,22 @@
     return `${ui.grain === 'week' ? 'Неделя с' : 'Месяц с'} ${formatDate(b.key)} · учтено ${formatPeriod(b.start, b.end)}`;
   }
   function renderChart(scope, buckets) {
+    $('#tooltip').classList.remove('visible');
     const container = $('#upd-chart'), events = markers(scope.shown, ui.from, ui.to, ui.grain);
     const eventText = (marker) => marker.dates.map((d) => `${formatDate(d.date)}${ui.article === 'all' ? ` — ${d.count} событий` : ''}`).join('; ');
     $('#upd-chart-title').textContent = ui.article === 'all' ? 'SEO-визиты когорты' : scope.shown[0]?.title || 'SEO-визиты статьи';
+    const span = Math.max(1, buckets.length - 1) * Math.max(96 / Math.max(240, container.clientWidth - 80), 0.2), groups = [];
+    events.forEach((m) => { const at = buckets.findIndex((b) => b.key === m.key), g = groups[groups.length - 1]; if (g && at - g.at < span) g.items.push(m); else groups.push({ at, items: [m] }); });
+    const grouped = events.length > 6 || groups.length < events.length;
+    const dateLabelOf = (m) => m.dates.length === 1 ? formatDate(m.dates[0].date) : `${m.count} апд.`;
+    const chartEvents = grouped ? groups.map(({ items }) => items.length === 1 ? { key: items[0].key, label: dateLabelOf(items[0]) } : { key: items[0].key, last: items[items.length - 1].key, label: `${items.reduce((n, m) => n + m.count, 0)} апд.` }) : events.map((m) => ({ key: m.key, label: dateLabelOf(m) }));
+    const legendMark = container.closest('.chart-card')?.querySelector('.legend span:last-child');
+    if (legendMark) legendMark.innerHTML = grouped ? '<i class="legend-bracket"></i>Апдейты · группы' : '<i class="legend-line rec-yandex"></i>Апдейты';
     $('#upd-chart-note').textContent = `${formatPeriod(ui.from, ui.to)} · ${granularityLabel(ui.grain)}. ${ui.article === 'all' ? 'Сумма уникальных статей; пунктир отмечает события этих статей.' : 'Пунктир: все даты апдейтов статьи из таблицы в периоде, независимо от выбранного месяца.'}${ui.grain === 'day' ? '' : ' Линия апдейта стоит на неделе или месяце, содержащем дату; сумма может включать дни до и после. Точные даты — под графиком.'}`;
-    $('#upd-events-list').innerHTML = events.length ? events.map((m) => { const b = buckets.find((x) => x.key === m.key); return `<li>${escape(b ? bucketLabel(b) : formatDate(m.key))}: ${escape(eventText(m))}</li>`; }).join('') : '<li>В периоде графика нет апдейтов.</li>';
+    let groupsNote = $('#upd-chart-groups');
+    if (!groupsNote) { groupsNote = document.createElement('p'); groupsNote.id = 'upd-chart-groups'; groupsNote.className = 'chart-groups-note'; $('#upd-chart-note').after(groupsNote); }
+    groupsNote.hidden = !grouped; groupsNote.textContent = 'Близкие апдейты на графике объединены скобкой, число над ней — сколько событий.';
+    $('#upd-events-list').innerHTML = events.length ? (grouped ? '<li>На графике близкие апдейты сгруппированы скобками. Точные даты — ниже.</li>' : '') + events.map((m) => { const b = buckets.find((x) => x.key === m.key); return `<li>${escape(b ? bucketLabel(b) : formatDate(m.key))}: ${escape(eventText(m))}</li>`; }).join('') : '<li>В периоде графика нет апдейтов.</li>';
     if (!scope.shown.length || !buckets.length || buckets.every((b) => b.value === null)) {
       const noHistory = scope.shown.length && missingHistory(ui.data.meta, ui.from, ui.to);
       const first = ui.data.meta.historyAvailability?.firstAvailableDate;
@@ -261,19 +311,18 @@
       container.setAttribute('aria-label', noHistory ? 'Нет истории Метрики за выбранный период' : 'Нет данных для выбранной когорты и периода');
       return;
     }
-    renderLineChart(container, buckets.map((b) => b.key), [{ name: 'SEO-визиты', className: 'line-primary', values: buckets.map((b) => b.value) }], { width: window.innerWidth < 640 ? 420 : 1200, events: events.map((m) => ({ key: m.key, label: events.length === 1 ? (m.dates.length === 1 ? formatDate(m.dates[0].date) : `${m.count} апдейтов`) : '' })) });
+    renderLineChart(container, buckets.map((b) => b.key), [{ name: 'SEO-визиты', className: 'line-primary', values: buckets.map((b) => b.value) }], {
+      axisUnit: `SEO-визиты · ${granularityLabel(ui.grain)}`,
+      events: chartEvents,
+      tooltipExtra(index) {
+        const b = buckets[index], marker = events.find((m) => m.key === b.key);
+        return `<br>${escape(bucketLabel(b))}${marker ? `<br>Апдейты: ${escape(eventText(marker))}` : ''}`;
+      },
+    });
     // Общий renderer даёт интерактивность, здесь подписи раскрывают границы бакета и даты.
     const svg = container.querySelector('svg');
     if (!svg) return;
     svg.querySelectorAll('.axis-label[text-anchor="middle"]').forEach((label) => { const title = document.createElementNS('http://www.w3.org/2000/svg', 'title'); title.textContent = ui.grain === 'day' ? 'Дата' : ui.grain === 'week' ? 'Начало недели (понедельник)' : 'Начало календарного месяца'; label.appendChild(title); });
-    const hit = svg.querySelector('.hit-area');
-    hit.addEventListener('mousemove', (event) => {
-      const width = window.innerWidth < 640 ? 420 : 1200, rect = svg.getBoundingClientRect();
-      const x = (event.clientX - rect.left) * width / rect.width;
-      const index = Math.max(0, Math.min(buckets.length - 1, Math.round((x - 76) * (buckets.length - 1) / (width - 104))));
-      const b = buckets[index], marker = events.find((m) => m.key === b.key);
-      $('#tooltip').innerHTML = `<strong>${escape(bucketLabel(b))}</strong><br>SEO-визиты: ${number(b.value)}${marker ? `<br>Апдейты: ${escape(eventText(marker))}` : ''}`;
-    });
     container.setAttribute('aria-label', `SEO-визиты ${ui.article === 'all' ? 'когорты' : 'статьи'} за ${formatPeriod(ui.from, ui.to)}, ${granularityLabel(ui.grain)}. Даты апдейтов приведены в списке под графиком.`);
   }
   function sortRows(rows) {
@@ -289,7 +338,7 @@
     const slice = rows.slice(ui.page * PAGE_SIZE, (ui.page + 1) * PAGE_SIZE);
     $('#upd-table-body').innerHTML = slice.length ? slice.map((r) => {
       const url = safeUrl(r.page.url), ranges = r.n ? `${formatPeriod(r.preFrom, r.preTo)} / ${formatPeriod(r.postFrom, r.postTo)}` : 'Нет парного окна';
-      return `<tr class="upd-result-${classification(r)}" data-article="${escape(r.page.id)}" data-update-date="${r.date}"><td><button class="link-button upd-show-article" data-article="${escape(r.page.id)}" type="button">${escape(r.page.title)}</button><span class="updates-cell-note">${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(r.page.title === r.page.path ? 'Открыть статью' : r.page.path)}</a>` : escape(r.page.path)}</span></td><td>${formatDate(r.date)}${r.sourceRows?.length ? `<span class="updates-cell-note">Строки источника: ${escape(r.sourceRows.join(', '))}</span>` : ''}</td><td>${number(r.pre)}</td><td>${number(r.post)}</td><td>${r.n} / ${ui.window}<span class="updates-cell-note">${escape(ranges)}</span></td><td>${number(r.avgPre)} → ${number(r.avgPost)}</td><td>${escape(delta(r.pre, r.post))}<span class="updates-cell-note">${escape(classificationLabel(r))}</span></td><td>${escape(status(r))}</td></tr>`;
+      return `<tr class="upd-result-${classification(r)}" data-article="${escape(r.page.id)}" data-update-date="${r.date}"><td><button class="link-button upd-show-article" data-article="${escape(r.page.id)}" type="button">${escape(r.page.title)}</button><span class="updates-cell-note">${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer" aria-label="Открыть статью в новой вкладке">${escape(r.page.title === r.page.path ? 'Открыть статью' : r.page.path)}</a>` : escape(r.page.path)}</span></td><td>${formatDate(r.date)}${r.sourceRows?.length ? `<span class="updates-cell-note">Строки источника: ${escape(r.sourceRows.join(', '))}</span>` : ''}</td><td>${number(r.pre)}</td><td>${number(r.post)}</td><td>${r.n} / ${ui.window}<span class="updates-cell-note">${escape(ranges)}</span></td><td>${number(r.avgPre)} → ${number(r.avgPost)}</td><td>${escape(delta(r.pre, r.post))}<span class="updates-cell-note">${escape(classificationLabel(r))}</span></td><td>${escape(status(r))}</td></tr>`;
     }).join('') : '<tr><td colspan="8">В выбранной когорте нет событий апдейта.</td></tr>';
     $('#upd-page-info').textContent = `Стр. ${ui.page + 1} из ${pages} · событий: ${rows.length}`;
     $('#upd-page-prev').disabled = ui.page === 0; $('#upd-page-next').disabled = ui.page === pages - 1;
@@ -352,7 +401,7 @@
     $('#upd-excluded-summary').textContent = `Строки, не вошедшие в анализ: ${excluded.length}`;
     $('#upd-excluded-list').innerHTML = excluded.map((row) => {
       const href = safeUrl(row.url);
-      return `<li>Строка ${escape(row.row ?? 'не указана')}: ${href ? `<a href="${escape(href)}" target="_blank" rel="noopener noreferrer">${escape(row.url)}</a>` : escape(row.url || 'URL не указан')} — ${escape(row.reason || 'Причина не указана')}</li>`;
+      return `<li>Строка ${escape(row.row ?? 'не указана')}: ${href ? `<a href="${escape(href)}" target="_blank" rel="noopener noreferrer" aria-label="Открыть URL из источника">${escape(row.url)}</a>` : escape(row.url || 'URL не указан')} — ${escape(row.reason || 'Причина не указана')}</li>`;
     }).join('');
   }
   function renderMethod() {
@@ -373,9 +422,11 @@
   }
   function renderAll() {
     availability(); if (ui.phase !== 'ready') return;
+    const requested = ui.article;
     const scope = getScope(); renderControls(scope.pages);
+    if (requested !== 'all' && ui.article === 'all') droppedArticle = true;
     const buckets = traffic(ui.data, scope.shown, ui.from, ui.to, ui.grain);
-    renderSource(); renderFocus(scope); renderKpis(scope, buckets); renderChart(scope, buckets); renderTable(scope.rows); renderMethod();
+    renderObservation(scope); renderSource(); renderFocus(scope); renderKpis(scope, buckets); renderChart(scope, buckets); renderTable(scope.rows); renderMethod();
   }
   function downloadXlsx() {
     const message = $('#upd-export-status');
@@ -393,9 +444,11 @@
     } catch (_) { message.textContent = 'Не удалось сформировать XLSX. Попробуйте ещё раз после обновления страницы.'; }
   }
   function bind() {
+    $('#upd-content').append($('#upd-content .updates-source'));
     $('#upd-xlsx').addEventListener('click', downloadXlsx);
     const change = (id, key, convert = (v) => v) => $(id).addEventListener('change', (event) => {
       ui[key] = convert(event.target.value); ui.page = 0;
+      if (key === 'article' || key === 'month') droppedArticle = false;
       if (key === 'article' || key === 'month') { ui.focusEvent = null; ui.latest = true; }
       if (key === 'to') ui.latest = false;
       if ((key === 'month' || key === 'article') && ui.data) [ui.from, ui.to] = focusRange(ui.data, ui.month, ui.window, key === 'article' ? focusDate(getScope()) : null);
@@ -410,16 +463,16 @@
       [ui.from, ui.to] = focusRange(ui.data, ui.month, ui.window, focusDate(scope));
       renderAll(); updateUrl();
     });
-    $('#upd-search').addEventListener('input', (event) => { ui.q = event.target.value; ui.page = 0; renderAll(); updateUrl(); });
+    $('#upd-search').addEventListener('input', (event) => { ui.q = event.target.value; ui.page = 0; droppedArticle = false; renderAll(); updateUrl(); });
     $('#upd-table-body').addEventListener('click', (event) => {
       if (event.target.closest('a')) return;
       const row = event.target.closest('[data-article]'); if (!row) return;
-      ui.article = row.dataset.article; ui.focusEvent = row.closest('tr').dataset.updateDate; ui.page = 0; ui.latest = true;
+      droppedArticle = false; ui.article = row.dataset.article; ui.focusEvent = row.closest('tr').dataset.updateDate; ui.page = 0; ui.latest = true;
       [ui.from, ui.to] = focusRange(ui.data, ui.month, ui.window, ui.focusEvent);
       renderAll(); updateUrl(); $('#upd-chart-card').scrollIntoView({ block: 'start' });
     });
-    document.querySelectorAll('#upd-table-head .th-sort').forEach((button) => button.addEventListener('click', () => { ui.direction = ui.sort === button.dataset.sort ? -ui.direction : ['title', 'date', 'status'].includes(button.dataset.sort) ? 1 : -1; ui.sort = button.dataset.sort; ui.page = 0; renderTable(getScope().rows); }));
-    $('#upd-page-prev').addEventListener('click', () => { ui.page--; renderTable(getScope().rows); }); $('#upd-page-next').addEventListener('click', () => { ui.page++; renderTable(getScope().rows); });
+    document.querySelectorAll('#upd-table-head .th-sort').forEach((button) => button.addEventListener('click', () => { ui.direction = ui.sort === button.dataset.sort ? -ui.direction : ['title', 'date', 'status'].includes(button.dataset.sort) ? 1 : -1; ui.sort = button.dataset.sort; ui.page = 0; renderTable(getScope().rows); updateUrl(); }));
+    $('#upd-page-prev').addEventListener('click', () => { ui.page--; renderTable(getScope().rows); updateUrl(); }); $('#upd-page-next').addEventListener('click', () => { ui.page++; renderTable(getScope().rows); updateUrl(); });
     window.addEventListener('resize', () => { if (active()) renderAll(); });
   }
   async function init() {
@@ -439,5 +492,6 @@
     return ui.pending;
   }
   window.initUpdates = init; window.ensureUpdates = () => ui.data ? renderAll() : init();
+  window.restoreUpdatesUrl = (params) => { droppedArticle = false; loadState(params); renderAll(); };
   window.renderUpdates = renderAll; window.updateUpdatesUrl = updateUrl;
 })();

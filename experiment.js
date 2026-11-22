@@ -131,6 +131,26 @@
     });
   }
 
+  function renderObservation() {
+    const box = $('#exp-observation'), ledger = $('#exp-absolute-ledger');
+    if (ledger) ledger.innerHTML = '';
+    if (!box) return;
+    if (exp.failed) { box.textContent = FAIL_MSG; return; }
+    const p = product(), w = windows(p);
+    const heading = `<h3>${esc(p.name)}</h3><p>Релиз: ${formatDate(p.release)} · только SEO</p>`;
+    if (!w) { box.innerHTML = heading + '<p>Дата релиза отсутствует в ряду: окна сравнения недоступны. Причинность не установлена.</p>'; return; }
+    const totals = { before: periodValues(p, w.before), after: periodValues(p, w.after) };
+    const windowRow = (side, label) => {
+      const idx = w[side], v = totals[side];
+      if (!idx.length) return `<p><b>${label}:</b> нет дней; суммы недоступны.</p>`;
+      return `<div class="exp-window-card"><h4>${label} · ${idx.length} дн.</h4><p>${formatPeriod(exp.data.dates[idx[0]], exp.data.dates[idx[idx.length - 1]])}</p>`
+        + `<p>Визиты: <b>${formatInt(v.visits)}</b><br>Лиды: <b>${formatInt(v.leads)}</b><br>Продажи: <b>${formatInt(v.sales)}</b></p></div>`;
+    };
+    box.innerHTML = heading + '<div class="exp-window-grid">' + windowRow('before', 'До') + windowRow('after', 'После') + '</div>'
+      + `<p>${w.before.length && w.after.length ? 'Сравнение двух окон; причинность не установлена.' : 'Одно из окон пусто: сравнение недоступно.'}</p>`;
+    if (ledger) ledger.innerHTML = '<details class="narrative-method"><summary>Как считаем проценты и средние</summary><p>День релиза входит в «после». Окна не зависят от диапазона графика. Среднее за день = сумма / дни окна. Дельта = (после / до − 1) × 100%; для CR сравниваются отношения сумм. При нулевом знаменателе CR отсутствует; при нуле «до» процент не рассчитывается.</p></details>';
+  }
+
   function renderFunnel() {
     const box = $('#exp-funnel'), note = $('#exp-funnel-note');
     const p = product();
@@ -138,15 +158,20 @@
     $('#exp-funnel-title').textContent = `${p.name}: воронка до и после релиза ${formatDate(p.release)}`;
     if (!w || !w.after.length) { box.innerHTML = '<div class="empty">Нет дней после релиза в данных.</div>'; note.textContent = ''; return; }
     const st = windowStats(p, w);
+    const absolute = { before: periodValues(p, w.before), after: periodValues(p, w.after) };
+    const basis = (m) => `<p class="exp-absolute">До: ${w.before.length ? `${METRICS[m].format(absolute.before[m])} / ${w.before.length} дн.` : 'нет дней в окне'}<br>После: ${METRICS[m].format(absolute.after[m])} / ${w.after.length} дн.</p>`;
     const weekly = (m) => sparkline(bucketSeries(p, m, 'week').values);
     const stage = (m, label) => {
       const fmt = METRICS[m].daily;
       const b = st.before[m], a = st.after[m];
       return `<div class="exp-stage"><span class="exp-stage-label">${label}</span>`
         + `<div class="exp-stage-values"><span><small>до</small>${b === null ? '—' : fmt(b)}</span><span class="exp-arrow">→</span><span><small>после</small><b>${a === null ? '—' : fmt(a)}</b></span></div>`
-        + `${deltaBadge(b, a)}${weekly(m)}</div>`;
+        + `${deltaBadge(b, a)}${m === 'revenue' ? basis(m) : ''}${weekly(m)}</div>`;
     };
-    const conn = (m, label) => `<div class="exp-conn"><span class="exp-conn-label">${label}</span><span>${ratioFmt(st.before[m])}</span><span class="exp-arrow">↓</span><b>${ratioFmt(st.after[m])}</b>${deltaBadge(st.before[m], st.after[m])}</div>`;
+    const conn = (m, label) => {
+      const numer = m === 'cr1' ? 'leads' : 'sales', denom = m === 'cr1' ? 'visits' : 'leads';
+      return `<div class="exp-conn"><span class="exp-conn-label">${label}</span><span>${ratioFmt(st.before[m])}</span><span class="exp-arrow">↓</span><b>${ratioFmt(st.after[m])}</b>${deltaBadge(st.before[m], st.after[m])}<p class="exp-absolute">До: ${w.before.length ? `${formatInt(absolute.before[numer])} / ${formatInt(absolute.before[denom])}` : 'нет дней в окне'}<br>После: ${formatInt(absolute.after[numer])} / ${formatInt(absolute.after[denom])}</p></div>`;
+    };
     box.innerHTML = stage('visits', 'Визиты в день') + conn('cr1', 'CR1 · лиды / визиты') + stage('leads', 'Лиды в день')
       + conn('cr2', 'CR2 · продажи / лиды') + stage('sales', 'Продажи в день') + stage('revenue', 'Выручка в день, ₽');
     const warn = [];
@@ -178,14 +203,34 @@
       const before = line(w.before, st.before[exp.metric]), after = line(w.after, st.after[exp.metric]);
       if (before.some((v) => v !== null) || after.some((v) => v !== null)) {
         withAverages = true;
-        series.push({ name: 'Среднее до релиза', className: 'line-black exp-avg-before', values: before, hideNull: true });
-        series.push({ name: 'Среднее после релиза', className: 'exp-avg-after', values: after, hideNull: true, swatch: 'fav', pointClass: 'point-fav' });
+        series.push({ name: 'Среднее до релиза', className: 'line-black exp-avg-before', values: before, format: METRICS[exp.metric].daily || ratioFmt, hideNull: true });
+        series.push({ name: 'Среднее после релиза', className: 'exp-avg-after', values: after, format: METRICS[exp.metric].daily || ratioFmt, hideNull: true, swatch: 'fav', pointClass: 'point-fav' });
       }
     }
     const events = [];
     const key = groupDate(shown.release, exp.grain);
     if (dates.includes(key)) events.push({ key, label: `Релиз · ${formatDate(shown.release).slice(0, 5)}` });
-    renderLineChart(container, dates, series, { width: window.innerWidth < 640 ? 360 : 1200, events });
+    const chartWindows = w ? [['before', 'До'], ['after', 'После']].filter(([side]) => w[side].length).map(([side, label]) => {
+      const idx = w[side];
+      return {
+        from: groupDate(exp.data.dates[idx[0]], exp.grain),
+        to: groupDate(exp.data.dates[idx[idx.length - 1]], exp.grain),
+        label: `${label} · ${idx.length} дн.`, className: `window-${side}`,
+      };
+    }) : [];
+    const overlap = chartWindows.length > 1 && chartWindows[0].to >= chartWindows[1].from;
+    renderLineChart(container, dates, series, {
+      width: window.innerWidth < 640 ? 360 : 1200, events, windows: overlap ? [] : chartWindows,
+      valueFormat: METRICS[exp.metric].format,
+      axisFormat: METRICS[exp.metric].ratio ? (v) => new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 4 }).format(v) : dailyFmt,
+      axisUnit: METRICS[exp.metric].ratio ? '%' : exp.metric === 'revenue' ? '₽' : METRICS[exp.metric].name,
+    });
+    if (overlap) {
+      const message = document.createElement('p');
+      message.className = 'reading-guide';
+      message.textContent = 'Корзина с релизом включает дни обоих окон. Заливка «до/после» отключена, чтобы не приписывать всю неделю или месяц одному окну. Точные даты и абсолюты указаны выше.';
+      container.prepend(message);
+    }
     $('#exp-chart-title').textContent = `${METRICS[exp.metric].name}: ${shown.name}`;
     $('#exp-chart-note').textContent = `Только SEO · счётчик ${exp.data.meta.counters[shown.group]} · ${shown.url}${shown.urlScope === 'prefix' ? '*' : ' · только эта страница и параметры'} · ${formatPeriod(exp.from, exp.to)} · ${granularityLabel(exp.grain)}${METRICS[exp.metric].ratio ? ' · доли по суммам периода' : ''}${events.length ? ` · пунктир — релиз${exp.grain === 'day' ? '' : ' (период, включающий дату)'}` : ' · дата релиза вне выбранного периода'}`;
     legend.innerHTML = `<span><i class="legend-line fact"></i>${esc(shown.name)}</span>`
@@ -256,8 +301,13 @@
   function renderAll() {
     // Данные ещё грузятся — тишина; app.js вызывает рендер до завершения fetch.
     if (!exp.data && !exp.failed) return;
+    const focused = document.activeElement;
+    const focusedBrand = focused?.closest('#exp-brand-tabs [data-brand]')?.dataset.brand;
+    const focusedProduct = focused?.closest('#exp-results-body [data-product]')?.dataset.product;
     if (!exp.failed) {
+      const requested = [exp.from, exp.to];
       [exp.from, exp.to] = normalizedPeriod(exp.data.dates, exp.from, exp.to);
+      notifyPeriod('experiment', requested, [exp.from, exp.to]);
       exp.product = product().id;
       setDateInputs('exp', exp.data.dates, exp.from, exp.to);
       renderBrandTabs();
@@ -267,11 +317,16 @@
       $('#exp-window').value = exp.win;
       renderFunnel();
     }
-    renderChart(); renderResults(); renderTable(); renderMethod();
+    renderObservation(); renderChart(); renderResults(); renderTable(); renderMethod();
+    const focusTarget = focusedBrand
+      ? $(`#exp-brand-tabs [data-brand="${CSS.escape(focusedBrand)}"]`)
+      : focusedProduct ? $(`#exp-results-body [data-product="${CSS.escape(focusedProduct)}"]`) : null;
+    focusTarget?.focus({ preventScroll: true });
   }
 
   function updateUrl() {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(location.search);
+    for (const key of ['brand', 'product', 'metric', 'grain', 'win', 'from', 'to']) params.delete(key);
     params.set('view', 'experiment');
     params.set('brand', exp.brand);
     if (exp.product) params.set('product', exp.product);
@@ -280,7 +335,7 @@
     params.set('win', exp.win);
     params.set('from', exp.from);
     params.set('to', exp.to);
-    history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
+    (window.DashboardUrl?.replace || history.replaceState.bind(history))(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
   }
 
   function setupControls() {
@@ -314,13 +369,15 @@
       $('#exp-funnel-card').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     };
     $('#exp-results-body').addEventListener('click', pick);
-    $('#exp-results-body').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(e); } });
+    $('#exp-results-body').addEventListener('keydown', (e) => { if (!e.target.closest('a') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(e); } });
     window.addEventListener('resize', () => {
       if (typeof state !== 'undefined' && state.view === 'experiment' && !exp.failed) renderChart();
     });
   }
 
   async function init() {
+    exp.failed = false;
+    sectionStatus('experiment', 'loading', init);
     try {
       exp.data = await window.loadJSON('experiment.json');
       exp.from = exp.data.dates[0];
@@ -337,11 +394,12 @@
       if (WINDOWS[params.get('win')]) exp.win = params.get('win');
       exp.from = snapDate(params.get('from')) || exp.from;
       exp.to = snapDate(params.get('to')) || exp.to;
-      setupControls();
+      if (!exp.controlsReady) { setupControls(); exp.controlsReady = true; }
+      sectionStatus('experiment', 'ready', init);
       if (typeof state !== 'undefined' && state.view === 'experiment') { renderAll(); updateUrl(); }
     } catch (error) {
       exp.failed = true;
-      renderAll();
+      if (!['NO_KEY', 'BAD_KEY'].includes(error?.message)) sectionStatus('experiment', 'error', init);
     }
   }
 

@@ -1,0 +1,44 @@
+.r3-forecast,.r3-delta{color:var(--text);min-width:0;font-size:14px;line-height:1.5;margin-bottom:var(--space-6)}
+.r3-forecast h3,.r3-delta h3{font-size:22px;letter-spacing:-.03em;font-weight:600;margin:var(--space-4) 0}
+.r3-forecast p,.r3-delta p{margin:var(--space-3) 0;overflow-wrap:anywhere}
+.r3-fc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4)}
+.r3-fc-project{background:var(--surface);padding:var(--space-4);border-radius:var(--radius-md);min-width:0}
+.r3-fc-project h4,.r3-delta-row h4{font-size:17px;letter-spacing:-.03em;font-weight:600;margin:0 0 var(--space-2)}
+.r3-fc-project .r3-fc-scale{font-size:12px;margin-bottom:var(--space-4)}
+.r3-fc-project dl{margin:0}
+.r3-fc-entry{display:grid;grid-template-columns:minmax(110px,1fr) minmax(0,1.6fr);gap:var(--space-3);align-items:center;min-height:var(--space-6);margin-bottom:var(--space-2)}
+.r3-fc-entry dt{font-size:12px;margin:0;color:var(--text)}
+.r3-fc-entry dd{display:grid;grid-template-columns:minmax(0,1fr) 108px;gap:var(--space-3);align-items:center;margin:0}
+.r3-fc-value{font-variant-numeric:tabular-nums;font-weight:500;text-align:right;overflow-wrap:anywhere}
+.r3-fc-value span{font-weight:400;font-size:12px}
+.r3-fc-track{display:block;height:12px;background:var(--bg);border-radius:var(--radius-sm);position:relative}
+.r3-fc-bar{display:block;height:12px;border-radius:var(--radius-sm);background:var(--text)}
+.r3-fc-fact{background:var(--primary)}
+.r3-fc-estimate{background:transparent;border:2px dashed var(--primary)}
+.r3-fc-season{background:repeating-linear-gradient(90deg,var(--text) 0 6px,transparent 6px 10px)}
+.r3-fc-demand{background:transparent;border:2px solid var(--text)}
+.r3-fc-bar.is-missing{display:none}
+.r3-fc-bar.is-zero{width:0!important;border:0;border-left:2px solid var(--text);border-radius:0}
+.r3-delta{margin:0 0 var(--space-6)}
+.r3-delta.is-open{background:var(--surface);padding:var(--space-4);border-radius:var(--radius-md)}
+.r3-delta:not(.is-open)>button{background:var(--surface)}
+.r3-delta button,.r3-delta a,.r3-delta summary{font-family:Graphik,sans-serif;color:var(--text);min-height:44px;border-radius:var(--radius-sm)}
+.r3-delta button{background:var(--bg);border:0;padding:var(--space-3) var(--space-4);cursor:pointer;font-weight:500;font-size:14px}
+.r3-delta button[aria-pressed="true"]{outline:2px solid var(--text);outline-offset:-2px}
+.r3-delta button:focus-visible,.r3-delta a:focus-visible,.r3-delta summary:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+.r3-switches,.r3-switches>div{display:flex;gap:var(--space-2);flex-wrap:wrap}
+.r3-switches{gap:var(--space-6);margin:var(--space-4) 0}
+.r3-delta-rows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4)}
+.r3-delta-row{background:var(--bg);padding:var(--space-4);border-radius:var(--radius-md);min-width:0;overflow-wrap:anywhere}
+.r3-delta-row dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3);margin:var(--space-4) 0}
+.r3-delta-row dt{font-size:12px;color:var(--text)}
+.r3-delta-row dd{font-size:18px;font-weight:500;font-variant-numeric:tabular-nums;margin:var(--space-2) 0 0}
+.r3-delta-row dd[data-r3-value="percent"]{font-size:14px}
+.r3-delta-row a{display:inline-flex;align-items:center;text-decoration:underline;text-underline-offset:3px;padding:var(--space-2) 0}
+.r3-delta details{margin-top:var(--space-4)}
+.r3-delta summary{cursor:pointer;align-content:center;padding:var(--space-3) 0}
+.r3-window-dates,.r3-incomplete{font-size:12px}
+.r3-table-scale{color:var(--text);font-size:12px;line-height:1.5;margin:var(--space-3) 0;overflow-wrap:anywhere}
+@media(max-width:1100px){.r3-delta-rows{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.r3-fc-grid,.r3-delta-rows{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:519px){.r3-fc-entry{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3)}.r3-fc-entry dt{flex:1;min-width:0;margin:0}.r3-fc-entry dd{display:block;max-width:45%}.r3-fc-track{display:none}.r3-delta.is-open{padding:var(--space-3)}.r3-fc-value{white-space:normal}.r3-fc-project{padding:var(--space-4)}}

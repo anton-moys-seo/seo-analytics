@@ -46,6 +46,7 @@
   }
   function scaffold(section) {
     section.innerHTML = `<div class="section-heading"><div><p class="eyebrow">SEO-продукты</p><h2 id="products-sf-cd-heading">Продукты SF/CD</h2><p class="ps-intro">Динамика поисковых показателей и SEO-воронки по страницам курсов</p></div></div>
+      <article id="ps-observation" class="observation section-observation"></article>
       <div id="ps-notice" class="ps-notice" role="status"></div>
       <article class="chart-card ps-filters"><div class="card-heading"><div><h3>Настройте отчёт</h3><p>Школа, страница, источник и период</p></div></div>
         <div class="ps-filter-grid">
@@ -58,11 +59,11 @@
         </div><p id="ps-error" class="ps-error" role="alert" hidden></p><p id="ps-source-note" class="ps-note"></p></article>
       <div id="ps-kpis" class="ps-kpis" aria-live="polite"></div>
       <article id="ps-chart-card" class="chart-card ps-chart-card"><div class="card-heading chart-heading-safe"><div><h3 id="ps-chart-title">Динамика</h3><p id="ps-chart-note"></p></div><div id="ps-legend" class="ps-legend" role="group" aria-label="Источники графика"></div><button id="ps-focus-clear" class="ps-focus-clear" type="button" hidden>Показать все страницы</button></div>
-        <div id="ps-chart" class="chart ps-chart" role="group" aria-label="Динамика выбранного показателя"></div><p id="ps-chart-status" class="ps-sr-only" role="status" aria-live="polite" aria-atomic="true"></p><p id="ps-chart-empty" class="ps-note" hidden></p>
-        <details id="ps-series-details" class="ps-series"><summary>Показать данные графика</summary><div class="table-wrap ps-series-wrap"><table><thead><tr><th scope="col">Период</th><th scope="col">Источник</th><th scope="col">Значение</th><th scope="col">Покрытие</th></tr></thead><tbody id="ps-series-body"></tbody></table></div></details></article>
+        <div id="ps-chart" class="chart ps-chart" role="group" aria-label="Динамика выбранного показателя"></div><p id="ps-chart-status" class="chart-readout" role="status" aria-live="polite" aria-atomic="true"></p><p id="ps-chart-empty" class="ps-note" hidden></p>
+        <details id="ps-series-details" class="ps-series"><summary>Показать данные графика</summary><div class="table-wrap ps-series-wrap" tabindex="0" aria-label="Данные графика, прокрутка"><table><thead><tr><th scope="col">Период</th><th scope="col">Источник</th><th scope="col">Значение</th><th scope="col">Покрытие</th></tr></thead><tbody id="ps-series-body"></tbody></table></div></details></article>
       <article id="ps-table-card" class="table-card ps-table-card"><div class="card-heading ps-table-heading"><div><h3>Страницы</h3><p>Итоги за выбранный период и покрытие данных</p></div><label class="ps-search-label">Поиск по названию или URL<input id="ps-search" type="search" placeholder="Название или адрес"></label></div>
-        <p id="ps-trend-note" class="ps-note ps-trend-note"></p><p class="ps-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть все столбцы.</p><p class="ps-focus-hint">Нажмите на строку — график покажет динамику именно этой страницы. Повторный клик по строке или кнопка «Показать все страницы» вернут динамику всей группы.</p><div class="table-wrap ps-table-wrap"><table><thead id="ps-thead"></thead><tbody id="ps-tbody"></tbody></table></div><p id="ps-table-empty" class="ps-note" hidden></p></article>`;
-    refs = Object.fromEntries(['notice','school','page','engine','engine-hint','metric','grain','from','to','error','source-note','kpis','chart-card','chart-title','chart-note','legend','focus-clear','chart','chart-status','chart-empty','series-details','series-body','table-card','trend-note','search','thead','tbody','table-empty'].map((id) => [id, section.querySelector('#ps-' + id)]));
+        <p id="ps-trend-note" class="ps-note ps-trend-note"></p><p class="ps-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть все столбцы.</p><p class="ps-focus-hint">Нажмите на строку — график покажет динамику именно этой страницы. Повторный клик по строке или кнопка «Показать все страницы» вернут динамику всей группы.</p><div class="table-wrap ps-table-wrap" tabindex="0" aria-label="Таблица страниц, прокрутка"><table><thead id="ps-thead"></thead><tbody id="ps-tbody"></tbody></table></div><p id="ps-table-empty" class="ps-note" hidden></p></article>`;
+    refs = Object.fromEntries(['observation','notice','school','page','engine','engine-hint','metric','grain','from','to','error','source-note','kpis','chart-card','chart-title','chart-note','legend','focus-clear','chart','chart-status','chart-empty','series-details','series-body','table-card','trend-note','search','thead','tbody','table-empty'].map((id) => [id, section.querySelector('#ps-' + id)]));
   }
   function restore() {
     const params = new URLSearchParams(location.search);
@@ -148,7 +149,7 @@
     const NS = 'http://www.w3.org/2000/svg';
     const node = (tag, attrs, text) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v); if (text != null) n.textContent = text; return n; };
     const mobile = window.innerWidth < 700;
-    const width = mobile ? Math.max(300, container.clientWidth) : 1200, height = mobile ? 300 : 430;
+    const width = Math.max(280, Math.min(1200, container.clientWidth || 1200)), height = mobile ? 300 : 430;
     const margin = {top: 24, right: mobile ? 20 : 28, bottom: 54, left: mobile ? 68 : 100};
     const innerW = width - margin.left - margin.right, innerH = height - margin.top - margin.bottom;
     const svg = node('svg', {viewBox: `0 0 ${width} ${height}`, tabindex: '0', role: 'img',
@@ -209,7 +210,7 @@
     const hit = node('rect', {class: 'hit-area', x: margin.left, y: margin.top, width: innerW, height: innerH}); svg.append(hit);
     const tooltip = el('div', null, 'tooltip ps-tooltip'); tooltip.id = 'ps-tooltip'; tooltip.setAttribute('role', 'tooltip');
     let active = periods.length - 1;
-    const hide = () => { tooltip.classList.remove('visible'); hover.setAttribute('visibility', 'hidden'); dots.forEach((dot) => dot.setAttribute('visibility', 'hidden')); refs['chart-status'].textContent = ''; };
+    const hide = () => { tooltip.classList.remove('visible'); hover.setAttribute('visibility', 'hidden'); dots.forEach((dot) => dot.setAttribute('visibility', 'hidden')); };
     const show = (index, event) => {
       active = Math.max(0, Math.min(periods.length - 1, index)); const xx = x(active);
       hover.setAttribute('x1', xx); hover.setAttribute('x2', xx); hover.setAttribute('visibility', 'visible');
@@ -222,14 +223,15 @@
         if (v != null) { dots[i].setAttribute('cx', xx); dots[i].setAttribute('cy', y(v)); }
         const row = el('div'); row.append(document.createTextNode(`${SOURCES[s.engine]}: `), el('b', value(v, metric, isBi))); tooltip.append(row);
       });
-      if (!event) refs['chart-status'].textContent = [...tooltip.children].map((item) => item.textContent).join('. ');
-      tooltip.classList.add('visible');
+      refs['chart-status'].textContent = [...tooltip.children].map((item) => item.textContent).join('. ');
+      tooltip.classList.toggle('visible', Boolean(event));
       const rect = svg.getBoundingClientRect(), box = tooltip.getBoundingClientRect();
       const left = event?.clientX ?? rect.left + xx / width * rect.width, top = event?.clientY ?? rect.top + 40;
       tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - box.width - 8, left + 16))}px`;
       tooltip.style.top = `${Math.max(8, Math.min(window.innerHeight - box.height - 8, top + 16))}px`;
     };
-    hit.addEventListener('pointermove', (event) => { const rect = svg.getBoundingClientRect(); show(Math.round(((event.clientX - rect.left) * width / rect.width - margin.left) / innerW * (periods.length - 1)), event); });
+    const pointer = (event) => { const rect = svg.getBoundingClientRect(); show(Math.round(((event.clientX - rect.left) * width / rect.width - margin.left) / innerW * (periods.length - 1)), event); };
+    hit.addEventListener('pointermove', pointer); hit.addEventListener('pointerdown', pointer);
     svg.addEventListener('pointerleave', hide); svg.addEventListener('blur', hide);
     svg.addEventListener('focus', () => show(active));
     svg.addEventListener('keydown', (event) => {
@@ -237,7 +239,8 @@
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault(); show(event.key === 'Home' ? 0 : event.key === 'End' ? periods.length - 1 : active + (event.key === 'ArrowLeft' ? -1 : 1));
     });
-    container.append(svg, tooltip);
+    container.append(svg, tooltip, el('p', 'Точки: ← → · Home / End · Esc. На телефоне коснитесь графика.', 'chart-instruction'));
+    show(active);
     if (isPosition) container.append(el('p', 'Средняя позиция: меньшее значение — выше в поиске', 'ps-value-range'));
   }
   function buildTable(selected, isBi, metric, spec) {
@@ -288,10 +291,29 @@
     }
     refs['table-empty'].hidden = pages.length > 0; refs['table-empty'].textContent = pages.length ? '' : 'Страницы не найдены.';
   }
+  function renderObservation(selected, points, metric, isBi, focus) {
+    const box = refs.observation; box.replaceChildren();
+    const selectedPage = data.pages.find((p) => p.id === selected.pageId);
+    const name = focus?.name || selectedPage?.name || (selected.school === 'all' ? 'Все страницы SF/CD' : `Все страницы ${SOURCES[selected.school]}`);
+    const metricLabel = refs.metric.selectedOptions[0].textContent;
+    box.append(el('span', `${name} · ${dateLabel(selected.from)}–${dateLabel(selected.to)}`, 'observation-label'));
+    const lastPeriod = [...new Set(points.map((p) => p.period))].sort().at(-1);
+    const last = points.filter((p) => p.period === lastPeriod);
+    if (!last.length) { box.append(el('h3', 'Нет значений для выбранных условий'), el('p', 'Пустые измерения не означают ноль. Проверьте доступные даты источника ниже.')); return; }
+    const amounts = last.map((p) => `${SOURCES[p.engine || (isBi ? 'bi' : selected.engine)] || 'Источник'}: ${value(p.value, metric, isBi)}`).join(' · ');
+    const span = last[0].from === last[0].to ? dateLabel(last[0].from) : `${dateLabel(last[0].from)}–${dateLabel(last[0].to)}`;
+    box.append(el('h3', `${metricLabel} за ${span} · ${amounts}`));
+    box.append(el('p', `Последняя точка графика, не итог за выбранный диапазон — итоги в карточках ниже. ` + last.map((p) => `${SOURCES[p.engine || (isBi ? 'bi' : selected.engine)] || 'Источник'}: ${coverage(p.coverage, !isBi && metric === 'position')}.`).join(' ')));
+    box.append(el('p', isBi ? 'Готовая мера SEO-воронки за этот период; поисковый фильтр к ней не применяется. Пропуски и неполные периоды не дополняем.' : 'Источники показаны отдельно; клики не равны визитам. Пропуски и предварительные дни указаны в покрытии.'));
+    const link = el('button', 'Проверить значения и периоды', 'observation-check'); link.type = 'button'; link.dataset.reveal = 'ps-series-details';
+    link.addEventListener('click', () => { refs['series-details'].hidden = false; refs['series-details'].open = true; }); box.append(link);
+  }
+
   function render() {
     if (!data || !refs) return;
     if (!refs.from.value || !refs.to.value || !refs.from.validity.valid || !refs.to.validity.valid || refs.from.value > refs.to.value) {
       refs.error.hidden = false; refs.error.textContent = 'Проверьте границы периода.';
+      refs.observation.replaceChildren(el('h3', 'Проверьте границы периода'), el('p', 'Наблюдение недоступно: начало и конец периода должны быть заполнены в допустимом порядке.'));
       refs.kpis.hidden = refs['chart-card'].hidden = refs['table-card'].hidden = true;
       return;
     }
@@ -345,13 +367,15 @@
       + refs['chart-note'].textContent;
     refs.chart.setAttribute('aria-label', refs['chart-title'].textContent);
     paintChart(points, metric, isBi); buildTable(selected, isBi, metric, spec);
+    renderObservation(selected, points, metric, isBi, focus);
     window.updateProductsSfCdUrl();
   }
   window.updateProductsSfCdUrl = function () {
+    if (typeof state !== 'undefined' && state.view !== 'products-sf-cd') return;
     const params = new URLSearchParams(location.search); params.set('view', 'products-sf-cd');
     if (refs) for (const key of ['school', 'page', 'engine', 'metric', 'grain', 'from', 'to']) params.set('ps_' + key, refs[key].value);
     if (focusPageId) params.set('ps_focus', focusPageId); else params.delete('ps_focus');
-    history.replaceState(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
+    (window.DashboardUrl?.replace || history.replaceState.bind(history))(null, '', `${location.pathname}?${params.toString()}${location.hash}`);
   };
   window.ensureProductsSfCd = function () {
     if (data) { render(); return Promise.resolve(); }
@@ -362,6 +386,9 @@
       section.replaceChildren(el('div', 'Не удалось подготовить раздел. Попробуйте обновить страницу.', 'empty'));
       return Promise.resolve();
     }
+    section.setAttribute('aria-busy', 'true');
+    section.replaceChildren(el('div', 'Загружаем продукты SF/CD. Дождитесь данных перед сравнением.', 'empty'));
+    section.firstElementChild.setAttribute('role', 'status');
     pending = window.loadJSON('products-sf-cd.json', {softFail: true}).then((raw) => {
       data = M.validate(raw); scaffold(section);
       option(refs.metric, 'clicks', 'Клики из поиска'); option(refs.metric, 'impressions', 'Показы'); option(refs.metric, 'position', 'Средняя позиция');
@@ -376,7 +403,14 @@
         cancelAnimationFrame(resizeFrame); resizeFrame = requestAnimationFrame(render);
       });
       render();
-    }).catch(() => { data = null; section.replaceChildren(el('div', 'Не удалось загрузить данные раздела. Проверьте ссылку и попробуйте ещё раз.', 'empty')); }).finally(() => { pending = null; });
+    }).catch((error) => {
+      data = null;
+      const access = ['NO_KEY', 'BAD_KEY'].includes(error?.message);
+      const box = el('div', null, 'empty'); box.setAttribute('role', 'status');
+      box.append(el('h3', access ? 'Доступ к продуктам не открыт' : 'Не удалось загрузить продукты SF/CD'), el('p', access ? 'Проверьте полноту полученной ссылки. Если не помогло, запросите новую у владельца отчёта.' : 'Файл раздела недоступен или не прошёл проверку. Другие разделы работают независимо.'));
+      if (!access) { const retry = el('button', 'Повторить загрузку', 'rec-csv-button'); retry.type = 'button'; retry.addEventListener('click', window.ensureProductsSfCd); box.append(retry); }
+      section.replaceChildren(box);
+    }).finally(() => { pending = null; section.setAttribute('aria-busy', 'false'); });
     return pending;
   };
 })();

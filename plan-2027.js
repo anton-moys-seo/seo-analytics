@@ -21,7 +21,54 @@
   const state = { brand: 'sf', feed: 0, channel: 'seo', from: '2025-01' };
   let D = null;
 
-  ['#p27-home', '#p27-back', '#p27-forecast'].forEach((sel) => { const a = $(sel); if (a && location.hash) a.href = a.getAttribute('href') + location.hash; });
+  const planKeys = ['brand', 'feed', 'channel', 'from'];
+  const dashboardViews = ['leads', 'products-sf-cd', 'forecast', 'media', 'recovery', 'updates', 'updates-all', 'experiment'];
+  const dashboardKeys = {
+    leads: ['lead', 'page', 'grain', 'from', 'to', 'direction', 'directionGrain', 'directionFrom', 'directionTo'],
+    media: ['project', 'section', 'grain', 'from', 'to', 'plan', 'planView'],
+    recovery: ['page', 'engine', 'grain', 'from', 'to', 'compare', 'group', 'sort', 'dir', 'tablePage'],
+    updates: ['month', 'article', 'q', 'window', 'grain', 'tail', 'from', 'to', 'focusEvent', 'sort', 'dir', 'page'],
+    'updates-all': ['month', 'section', 'article', 'q', 'status', 'window', 'grain', 'from', 'to', 'sort', 'dir', 'page', 'event'],
+    experiment: ['brand', 'product', 'metric', 'grain', 'win', 'from', 'to'],
+    'products-sf-cd': ['ps_school', 'ps_page', 'ps_engine', 'ps_metric', 'ps_grain', 'ps_from', 'ps_to', 'ps_focus'],
+  };
+  function readContext(raw) {
+    if (!raw) return null;
+    try {
+      const saved = raw.trim().startsWith('{') ? JSON.parse(raw) : Object.fromEntries(new URLSearchParams(raw));
+      return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : null;
+    } catch (_) { return null; }
+  }
+  function syncDashboardLinks() {
+    for (const [sel, fallback] of [['#p27-home', 'leads'], ['#p27-back', 'leads'], ['#p27-forecast', 'forecast']]) {
+      const a = $(sel); if (!a) continue;
+      const url = new URL(location.href), back = url.searchParams.get('returnView');
+      const target = sel === '#p27-back' && dashboardViews.includes(back) ? back : fallback;
+      const planContext = new URLSearchParams();
+      for (const key of planKeys) planContext.set(key, String(state[key]));
+      url.searchParams.set('ctx_plan-2027', planContext.toString());
+      for (const key of planKeys) url.searchParams.delete(key);
+      const owner = target === 'forecast' ? 'leads' : target;
+      const saved = readContext(url.searchParams.get(`ctx_${owner}`));
+      for (const key of dashboardKeys[owner] || []) {
+        if (saved?.[key] == null) url.searchParams.delete(key);
+        else url.searchParams.set(key, String(saved[key]));
+      }
+      url.pathname = new URL('index.html', url).pathname;
+      url.searchParams.set('view', target);
+      a.href = url.href;
+    }
+  }
+  readState();
+  syncDashboardLinks();
+  ['pointerdown', 'contextmenu', 'focusin'].forEach((type) => document.querySelector('.p27-top-nav')?.addEventListener(type, syncDashboardLinks, true));
+  $('[data-focus-main]')?.addEventListener('click', () => $('#p27-main').focus());
+  $('[data-open-method]')?.addEventListener('click', () => {
+    const details = $('#p27-methodology');
+    if (!details) return;
+    details.open = true; details.querySelector('summary').focus();
+    details.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   // ---------- загрузка ----------
   function b64(text) {
@@ -29,7 +76,15 @@
     const bin = atob((text + pad).replace(/-/g, '+').replace(/_/g, '/'));
     return Uint8Array.from(bin, (c) => c.charCodeAt(0));
   }
-  function lock(msg) { $('#p27-main').innerHTML = `<div class="empty">${esc(msg)}</div>`; }
+  function lock(msg) {
+    const wrong = /неверен/.test(msg), encrypted = /зашифрован/.test(msg);
+    $('#p27-main').innerHTML = `<section class="empty lock-screen" tabindex="-1" role="region" aria-labelledby="p27-lock-title" aria-describedby="p27-lock-detail p27-lock-next"><h2 id="p27-lock-title">${wrong ? 'Ключ не подошёл' : encrypted ? 'Нужен ключ доступа' : 'Не удалось загрузить план'}</h2><p id="p27-lock-detail">${esc(msg)}</p><p id="p27-lock-next">${wrong || encrypted ? 'Откройте полную полученную ссылку вместе с частью после символа «#». Проверьте, что ссылка скопирована целиком. Если доступ не появился, запросите новую ссылку у владельца отчёта.' : 'Обновите страницу. Если ошибка повторяется, сообщите владельцу отчёта.'}</p></section>`;
+    $('#p27-asof').textContent = 'Данные недоступны';
+    $('#p27-generated').textContent = '';
+    $('#p27-tooltip').classList.remove('visible');
+    $('#p27-main').setAttribute('aria-busy', 'false');
+    $('.lock-screen').focus({ preventScroll: true });
+  }
   async function load() {
     if (!KEY) { lock('План зашифрован. Откройте ссылку с ключом доступа (часть после символа «#»), как для основного дашборда.'); throw new Error('NO_KEY'); }
     const r = await fetch('plan-2027.json.enc', { cache: 'no-store' });
@@ -204,12 +259,86 @@
 
   // ---------- графики ----------
   const tip = $('#p27-tooltip');
-  function showTip(e, html) { tip.innerHTML = html; tip.classList.add('visible'); tip.style.left = `${Math.min(e.clientX + 16, innerWidth - 280)}px`; tip.style.top = `${e.clientY + 16}px`; }
+  function showTip(e, html) {
+    tip.innerHTML = html; tip.classList.add('visible');
+    tip.style.left = `${Math.max(8, Math.min(e.clientX + 16, innerWidth - tip.offsetWidth - 8))}px`;
+    tip.style.top = `${Math.max(8, Math.min(e.clientY + 16, innerHeight - tip.offsetHeight - 8))}px`;
+  }
   function hideTip() { tip.classList.remove('visible'); }
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideTip(); });
+  document.addEventListener('pointerdown', (event) => { if (!event.target.closest('.chart')) hideTip(); });
   function niceMax(v) { const raw = (v || 1) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))); return [1, 2, 2.5, 5, 10].map((k) => k * mag).find((k) => k >= raw) * 4; }
   const path = (pts) => pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
+  function chartBox(selector, height) {
+    const width = $(selector).getBoundingClientRect().width;
+    return { W: Math.max(280, width || innerWidth - 64), H: innerWidth <= 640 ? Math.min(height, 340) : height };
+  }
+  function tickIndexes(count, width, gap, anchors = [0, count - 1]) {
+    const chosen = [];
+    for (const i of [...anchors, ...Array.from({ length: count }, (_, index) => index)]) {
+      if (i < 0 || i >= count || chosen.some((j) => Math.abs(i - j) * width / Math.max(1, count - 1) < gap)) continue;
+      chosen.push(i);
+    }
+    return new Set(chosen);
+  }
+  function bindPoint(rect, describe) {
+    const show = (event) => { rect.readPoint?.(); describe(event); };
+    rect.addEventListener('pointermove', show);
+    rect.addEventListener('pointerdown', show);
+    rect.addEventListener('pointerleave', (event) => { if (event.pointerType !== 'touch') hideTip(); });
+  }
+
+  function chartAccess(selector, labels, columns, rows, unit, initial = 0) {
+    const host = $(selector), svg = host.querySelector('svg'), id = host.id;
+    if (!svg || !labels.length || !rows.length) return; // UI-guard: пустой горизонт не роняет access-слой
+    const points = [...host.querySelectorAll('.hit-area')];
+    const instruction = document.createElement('p');
+    instruction.className = 'chart-instruction'; instruction.id = `${id}-help`;
+    instruction.textContent = 'Коснитесь месяца или наведите курсор. Клавиатура: Tab на график, ← / → по месяцам, Home / End к краям. Все значения — в таблице ниже.';
+    const readout = document.createElement('p');
+    readout.className = 'chart-readout'; readout.id = `${id}-readout`;
+    readout.setAttribute('aria-live', 'polite'); readout.setAttribute('aria-atomic', 'true');
+    const details = document.createElement('details'); details.className = 'chart-data';
+    details.innerHTML = `<summary>Значения графика · ${esc(unit)}</summary><div class="table-wrap" tabindex="0" aria-label="Значения графика, прокрутка"><table><caption>${esc(host.getAttribute('aria-label'))} · ${esc(unit)}</caption><thead><tr><th scope="col">Месяц</th>${columns.map((v) => `<th scope="col">${esc(v)}</th>`).join('')}</tr></thead><tbody>${labels.map((label, i) => `<tr><th scope="row">${esc(label)}</th>${rows[i].map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    host.append(instruction, readout, details);
+    svg.setAttribute('tabindex', '0'); svg.setAttribute('role', 'slider');
+    svg.setAttribute('aria-label', `${host.getAttribute('aria-label')} · ${unit}`);
+    svg.setAttribute('aria-describedby', instruction.id);
+    svg.setAttribute('aria-orientation', 'horizontal');
+    svg.setAttribute('aria-valuemin', '1'); svg.setAttribute('aria-valuemax', String(labels.length));
+    const cursor = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    cursor.setAttribute('class', 'p27-cursor'); cursor.setAttribute('aria-hidden', 'true');
+    svg.append(cursor);
+    let active = Math.max(0, labels.indexOf(host.dataset.activeMonth));
+    if (!host.dataset.activeMonth || !labels.includes(host.dataset.activeMonth)) active = initial;
+    function select(index) {
+      active = Math.max(0, Math.min(labels.length - 1, index));
+      cursor.setAttribute('visibility', 'visible');
+      host.dataset.activeMonth = labels[active];
+      const values = rows[active].map((value, i) => value === '—' ? '' : `${columns[i]}: ${value}`).filter(Boolean).join(' · ');
+      const text = `${labels[active]} · ${values} · ${unit}`;
+      readout.textContent = text;
+      svg.setAttribute('aria-valuenow', String(active + 1)); svg.setAttribute('aria-valuetext', text);
+      const rect = points[active];
+      if (rect) {
+        const x = Number(rect.getAttribute('x')) + Number(rect.getAttribute('width')) / 2;
+        cursor.setAttribute('x1', x); cursor.setAttribute('x2', x);
+        cursor.setAttribute('y1', rect.getAttribute('y'));
+        cursor.setAttribute('y2', Number(rect.getAttribute('y')) + Number(rect.getAttribute('height')));
+      }
+    }
+    points.forEach((rect, index) => { rect.readPoint = () => select(index); });
+    svg.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') { hideTip(); cursor.setAttribute('visibility', 'hidden'); return; }
+      const next = { ArrowLeft: active - 1, ArrowRight: active + 1, Home: 0, End: labels.length - 1 }[event.key];
+      if (next === undefined) return;
+      event.preventDefault(); hideTip(); select(next);
+    });
+    select(active);
+  }
 
   function renderMainChart() {
+    hideTip();
     const b = state.brand, c = state.channel, f = state.feed, hasSeo = c !== 'direct';
     const fcm = FCM(), months = [];
     for (let m = state.from; m <= fcm[fcm.length - 1]; m = addMonths(m, 1)) months.push(m);
@@ -220,15 +349,17 @@
     const opt = months.map((m) => (m === '2026-11' ? novEst(b, c) : m >= '2026-12' ? fc(b, c, m, 'opt', f) : null));
     const est = months.map((m) => (m === '2026-10' ? hist(b, c, m, 'fact') : m === '2026-11' ? novEst(b, c) : null));
     const maxV = niceMax(Math.max(...[...fact, ...plan, ...opt].filter((v) => v !== null)) * 1.05);
-    const W = 1200, H = 420, L = 56, R = 18, T = 22, B = 44;
+    const { W, H } = chartBox('#p27-chart', 420);
+    const L = 56, R = 28, T = 38, B = 44;
     const x = (i) => L + (W - L - R) * (months.length === 1 ? 0.5 : i / (months.length - 1));
     const y = (v) => T + (H - T - B) * (1 - v / maxV);
     const seg = (arr) => { const out = []; let cur = []; arr.forEach((v, i) => { if (v === null || v === undefined) { if (cur.length) out.push(cur); cur = []; } else cur.push([x(i), y(v)]); }); if (cur.length) out.push(cur); return out.map(path).join(''); };
-    let g = '';
-    for (let k = 0; k <= 4; k++) { const v = maxV * k / 4; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" style="stroke:#E2E2E2"/><text class="axis-label" x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${nf.format(v)}</text>`; }
-    const iDiv = months.indexOf('2026-12'), step = months.length > 30 ? 3 : months.length > 18 ? 2 : 1;
-    months.forEach((m, i) => { const near = Math.abs(i - iDiv) < step && i !== iDiv; if ((i % step === 0 && !near) || i === iDiv) g += `<text class="axis-label" x="${x(i)}" y="${H - 18}" text-anchor="middle">${mShort(m)}</text>`; });
-    if (iDiv > 0) { const xd = (x(iDiv) + x(iDiv - 1)) / 2; g += `<line class="p27-divider" x1="${xd}" x2="${xd}" y1="${T - 10}" y2="${H - B}"/><text class="p27-divider-label" x="${xd + 6}" y="${T}">план →</text><text class="p27-divider-label" x="${xd - 6}" y="${T}" text-anchor="end">← факт</text>`; }
+    let g = `<text class="chart-unit" x="${L}" y="16">Лиды</text>`;
+    for (let k = 0; k <= 4; k++) { const v = maxV * k / 4; g += `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis-label" style="font-size:12px" x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${nf.format(v)}</text>`; }
+    const iDiv = months.indexOf('2026-12');
+    const ticks = tickIndexes(months.length, W - L - R, 66, [iDiv, 0, months.length - 1]);
+    months.forEach((m, i) => { if (ticks.has(i)) g += `<text class="axis-label" style="font-size:12px" x="${x(i)}" y="${H - 18}" text-anchor="middle">${mShort(m)}</text>`; });
+    if (iDiv > 0) { const xd = (x(iDiv) + x(iDiv - 1)) / 2; g += `<line class="p27-divider" x1="${xd}" x2="${xd}" y1="${T - 10}" y2="${H - B}"/><text class="p27-divider-label" style="font-size:12px" x="${xd + 6}" y="${T}">сценарии →</text><text class="p27-divider-label" style="font-size:12px" x="${xd - 6}" y="${T}" text-anchor="end">← факт / оценка</text>`; }
     const top = opt.map((v, i) => (v === null ? null : [x(i), y(v)])).filter(Boolean), bot = base.map((v, i) => (v === null ? null : [x(i), y(v)])).filter(Boolean).reverse();
     if (top.length) g += `<path class="p27-band" d="${path([...top, ...bot])}Z"/>`;
     g += `<path class="p27-s-plan" d="${seg(plan)}"/>`;
@@ -240,7 +371,7 @@
     months.forEach((m, i) => { g += `<rect class="hit-area" data-i="${i}" x="${x(i) - colW / 2}" y="${T}" width="${colW}" height="${H - T - B}"/>`; });
     $('#p27-chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}</svg>`;
     $$('#p27-chart .hit-area').forEach((r) => {
-      r.addEventListener('mousemove', (e) => {
+      bindPoint(r, (e) => {
         const i = +r.dataset.i, m = months[i], lines = [`<b>${esc(mLabel(m))}</b>`];
         if (fact[i] !== null) lines.push(`Факт: ${nf.format(fact[i])}`);
         if (clean[i] !== null) lines.push(`Факт без фида: ${nf.format(clean[i])}`);
@@ -254,15 +385,20 @@
         }
         showTip(e, lines.join('<br>'));
       });
-      r.addEventListener('mouseleave', hideTip);
     });
-    const items = [[sw.line('p27-s-fact', 'p27-dot'), 'Факт Power BI']];
-    if (clean.some((v) => v !== null)) items.push([sw.line('p27-s-factclean'), 'Факт без фида']);
-    items.push([sw.line('p27-s-est'), 'Оценка ноября 2026 (факт 1–10.11 + досчёт)'], [sw.line('p27-s-plan'), 'План Power BI (заведён по ноябрь 2026)'], [sw.line('p27-s-base'), `База${hasSeo ? (f ? ' с фидом' : ' без фида') : ''}`], [sw.line('p27-s-opt', 'p27-dot-opt'), 'Оптимистичный'], [sw.band(), 'Коридор между сценариями'], [sw.vline(), 'Начало плана']);
-    $('#p27-chart-legend').innerHTML = legend(items);
+    const items = [[sw.line('p27-s-fact', 'p27-dot'), 'Факт Power BI']], extra = [];
+    if (clean.some((v) => v !== null)) extra.push([sw.line('p27-s-factclean'), 'Факт без фида']);
+    items.push([sw.line('p27-s-est'), 'Оценка ноября 2026 (факт 1–10.11 + досчёт)'], [sw.line('p27-s-plan'), 'План Power BI (заведён по ноябрь 2026)'], [sw.line('p27-s-base'), `База${hasSeo ? (f ? ' с фидом' : ' без фида') : ''}`], [sw.line('p27-s-opt', 'p27-dot-opt'), 'Оптимистичный']);
+    extra.push([sw.band(), 'Коридор между сценариями'], [sw.vline(), 'Начало плана']);
+    $('#p27-chart-legend').innerHTML = `${legend(items)}<details class="p27-legend-more"><summary>Ещё обозначения: ${extra.length}</summary>${legend(extra)}</details>`;
     $('#p27-chart-title').textContent = `${BRAND_NAME[b]} · ${CH_LABEL[c]}: факт и прогноз`;
     const s27 = (kind) => fcSum(b, c, M27(), kind, f);
     $('#p27-chart-note').textContent = `2027 год: база ${nf.format(s27('base'))}, оптимистичный ${nf.format(s27('opt'))}${hasSeo ? ` (${f ? 'с фидом' : 'без фида'})` : ''}. 2026 год с фидом и оценкой ноября: ${nf.format(total2026(b, c))}.`;
+    const value = (v) => v == null ? '—' : nf.format(v);
+    chartAccess('#p27-chart', months.map(mLabel),
+      ['Статус', 'Факт Power BI', 'Факт без фида', ...(c === 'both' ? [] : ['С поправкой атрибуции']), 'Факт 1–10.11', 'Оценка ноября', 'План Power BI', `База${hasSeo ? (f ? ' с фидом' : ' без фида') : ''}`, 'Оптимистичный'],
+      months.map((m, i) => [m <= '2026-10' ? 'Факт' : m === '2026-11' ? 'Частичный факт / оценка' : 'Сценарий', value(fact[i]), value(clean[i]), ...(c === 'both' ? [] : [m === '2026-04' ? value(hist(b, c, m, 'corrected')) : '—']), m === '2026-11' ? value(hist(b, c, m, 'fact')) : '—', m === '2026-11' ? value(novEst(b, c)) : '—', value(plan[i]), m >= '2026-12' ? value(base[i]) : '—', m >= '2026-12' ? value(opt[i]) : '—']),
+      'лиды', months.indexOf('2026-12'));
   }
 
   function renderUplift() {
@@ -271,24 +407,29 @@
     const val = (m, p) => chansOf(c).reduce((s, ch) => s + D.brands[b].channels[ch].forecast.find((x) => x.month === m).levers[p], 0);
     const data = months.map((m) => parts.map(([p]) => val(m, p)));
     const maxV = niceMax(Math.max(1, ...data.map((d) => d.reduce((a, v) => a + v, 0))) * 1.05);
-    const W = 600, H = 300, L = 44, R = 10, T = 12, B = 36, bw = (W - L - R) / months.length;
+    const { W, H } = chartBox('#p27-uplift', 300);
+    const L = 52, R = 14, T = 32, B = 40, bw = (W - L - R) / months.length;
+    const ticks = tickIndexes(months.length, W - L - R - bw, 32);
     const y = (v) => T + (H - T - B) * (1 - v / maxV);
-    let g = '';
-    for (let k = 0; k <= 4; k++) { const v = maxV * k / 4; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" style="stroke:#E2E2E2"/><text class="axis-label" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${nf.format(v)}</text>`; }
+    let g = `<text class="chart-unit" x="${L}" y="16">Лиды</text>`;
+    for (let k = 0; k <= 4; k++) { const v = maxV * k / 4; g += `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis-label" style="font-size:12px" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${nf.format(v)}</text>`; }
     data.forEach((d, i) => {
       let acc = 0; const x0 = L + i * bw + bw * 0.18, w = bw * 0.64;
       parts.forEach(([, color], j) => { const h = (H - T - B) * d[j] / maxV; if (h > 0) g += `<rect x="${x0}" y="${y(acc + d[j])}" width="${w}" height="${h}" fill="${color}"/>`; acc += d[j]; });
-      g += `<text class="axis-label" x="${x0 + w / 2}" y="${H - 14}" text-anchor="middle">${MSHORT[+months[i].slice(5) - 1]}</text>`;
-      if (i === 0 || months[i].endsWith('-01')) g += `<text class="axis-label" x="${x0 + w / 2}" y="${H - 1}" text-anchor="middle" style="font-size:10px">${months[i].slice(0, 4)}</text>`;
+      if (ticks.has(i)) g += `<text class="axis-label" style="font-size:12px" x="${x0 + w / 2}" y="${H - 18}" text-anchor="middle">${MSHORT[+months[i].slice(5) - 1]}</text>`;
       g += `<rect class="hit-area" data-i="${i}" x="${L + i * bw}" y="${T}" width="${bw}" height="${H - T - B}"/>`;
     });
+    for (const year of new Set(months.map((m) => m.slice(0, 4)))) {
+      const first = months.findIndex((m) => m.startsWith(year)), last = months.findLastIndex((m) => m.startsWith(year));
+      g += `<text class="axis-label" style="font-size:12px" x="${L + (first + last + 1) * bw / 2}" y="${H - 2}" text-anchor="middle">${year}</text>`;
+    }
     $('#p27-uplift').innerHTML = `<svg viewBox="0 0 ${W} ${H}">${g}</svg>`;
     $$('#p27-uplift .hit-area').forEach((r) => {
-      r.addEventListener('mousemove', (e) => { const i = +r.dataset.i, d = data[i]; showTip(e, `<b>${esc(mLabel(months[i]))}</b><br>${parts.map(([, , l], j) => `${l}: +${d1.format(d[j])}`).join('<br>')}<br>Итого к базе: +${nf.format(fc(b, c, months[i], 'opt', 0) - fc(b, c, months[i], 'base', 0))}`); });
-      r.addEventListener('mouseleave', hideTip);
+      bindPoint(r, (e) => { const i = +r.dataset.i, d = data[i]; showTip(e, `<b>${esc(mLabel(months[i]))}</b><br>${parts.map(([, , l], j) => `${l}: +${d1.format(d[j])}`).join('<br>')}<br>Итого к базе: +${nf.format(fc(b, c, months[i], 'opt', 0) - fc(b, c, months[i], 'base', 0))}`); });
     });
     $('#p27-uplift-legend').innerHTML = legend(parts.map(([, color, l]) => [sw.box(color), l]));
     $('#p27-uplift-note').textContent = `${BRAND_NAME[b]}, ${CH_LABEL[c]}: прирост к базе, лидов в месяц. За 2027 год +${nf.format(fcSum(b, c, M27(), 'opt', 0) - fcSum(b, c, M27(), 'base', 0))}. Фид от доработок не зависит и сюда не входит.${c === 'direct' ? ' На DIRECT действует только доработка страниц.' : ''}`;
+    chartAccess('#p27-uplift', months.map(mLabel), parts.map(([, , label]) => label), data.map((row) => row.map((v) => `+${d1.format(v)}`)), 'лиды · оценка прироста к базе');
   }
 
   function renderSeason() {
@@ -296,20 +437,22 @@
     const series = [['seasonLeads', 'p27-s-leads', 'Лиды SEO + DIRECT, 04.2024 — 10.2026'], ['seasonWordstat', 'p27-s-ws', 'Wordstat тематики, 01.2024 — 09.2026'], ['season', 'p27-s-opt', 'Итоговый индекс (в плане)']];
     const vals = series.flatMap(([k]) => Object.values(br[k]));
     const lo = Math.floor(Math.min(...vals) * 10) / 10, hi = Math.ceil(Math.max(...vals) * 10) / 10;
-    const W = 600, H = 300, L = 44, R = 10, T = 12, B = 36;
+    const { W, H } = chartBox('#p27-season', 300);
+    const L = 44, R = 22, T = 32, B = 36;
+    const ticks = tickIndexes(MSHORT.length, W - L - R, 32);
     const x = (i) => L + (W - L - R) * i / 11, y = (v) => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
-    let g = '';
-    for (let v = lo; v <= hi + 1e-9; v += 0.1) { const one = Math.abs(v - 1) < 1e-6; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" ${one ? 'class="p27-s-one"' : 'style="stroke:#E2E2E2"'}/><text class="axis-label" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${df.format(v)}</text>`; }
-    MSHORT.forEach((m, i) => { g += `<text class="axis-label" x="${x(i)}" y="${H - 14}" text-anchor="middle">${m}</text>`; });
+    let g = `<text class="chart-unit" x="${L}" y="16">Индекс · среднее = 1,00</text>`;
+    for (let v = lo; v <= hi + 1e-9; v += 0.1) { const one = Math.abs(v - 1) < 1e-6; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" ${one ? 'class="p27-s-one"' : 'class="grid-line"'}/><text class="axis-label" style="font-size:12px" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${df.format(v)}</text>`; }
+    MSHORT.forEach((m, i) => { if (ticks.has(i)) g += `<text class="axis-label" style="font-size:12px" x="${x(i)}" y="${H - 14}" text-anchor="middle">${m}</text>`; });
     series.forEach(([k, cls]) => { g += `<path class="${cls}" d="${path(MSHORT.map((_, i) => [x(i), y(br[k][String(i + 1)])]))}"/>`; });
     MSHORT.forEach((_, i) => { g += `<circle cx="${x(i)}" cy="${y(br.season[String(i + 1)])}" r="2.8" class="p27-dot-opt"/><rect class="hit-area" data-i="${i}" x="${x(i) - (W - L - R) / 22}" y="${T}" width="${(W - L - R) / 11}" height="${H - T - B}"/>`; });
     $('#p27-season').innerHTML = `<svg viewBox="0 0 ${W} ${H}">${g}</svg>`;
     $$('#p27-season .hit-area').forEach((r) => {
-      r.addEventListener('mousemove', (e) => { const k = String(+r.dataset.i + 1); showTip(e, `<b>${MONTHS[+k - 1]}</b><br>Лиды: ${df.format(br.seasonLeads[k])}<br>Wordstat: ${df.format(br.seasonWordstat[k])}<br>Итоговый: ${df.format(br.season[k])}`); });
-      r.addEventListener('mouseleave', hideTip);
+      bindPoint(r, (e) => { const k = String(+r.dataset.i + 1); showTip(e, `<b>${MONTHS[+k - 1]}</b><br>Лиды: ${df.format(br.seasonLeads[k])}<br>Wordstat: ${df.format(br.seasonWordstat[k])}<br>Итоговый: ${df.format(br.season[k])}`); });
     });
     $('#p27-season-legend').innerHTML = legend([...series.map(([, cls, l]) => [sw.line(cls, cls === 'p27-s-opt' ? 'p27-dot-opt' : ''), l]), [sw.line('p27-s-one'), 'Средний месяц = 1,00']]);
     $('#p27-season-note').textContent = `${BRAND_NAME[state.brand]}: индекс месяца относительно среднего за год. Итоговый — среднее двух индексов; один для SEO и DIRECT.`;
+    chartAccess('#p27-season', MONTHS, series.map(([, , label]) => label), MONTHS.map((_, i) => series.map(([key]) => df.format(br[key][String(i + 1)]))), 'индекс сезонности');
   }
 
   // ---------- методика и источники ----------
@@ -364,32 +507,70 @@
   // ---------- состояние ----------
   function readState() {
     const p = new URLSearchParams(location.search);
+    if (!planKeys.some((key) => p.has(key))) {
+      const saved = readContext(p.get('ctx_plan-2027'));
+      for (const key of planKeys) if (saved?.[key] != null) p.set(key, String(saved[key]));
+    }
     if (['sf', 'cd'].includes(p.get('brand'))) state.brand = p.get('brand');
     if (['0', '1'].includes(p.get('feed'))) state.feed = +p.get('feed');
     if (['seo', 'direct', 'both'].includes(p.get('channel'))) state.channel = p.get('channel');
     if (['2024-04', '2025-01', '2026-01'].includes(p.get('from'))) state.from = p.get('from');
   }
-  function writeState() { history.replaceState(null, '', `${location.pathname}?${new URLSearchParams({ brand: state.brand, feed: state.feed, channel: state.channel, from: state.from })}${location.hash}`); }
+  function writeState() {
+    const url = new URL(location.href);
+    for (const key of planKeys) url.searchParams.set(key, state[key]);
+    history.replaceState(null, '', url.href);
+    syncDashboardLinks();
+  }
   function paintSegs() {
-    const set = (sel, attr, val) => $$(`${sel} .p27-seg-btn`).forEach((btn) => { const on = btn.dataset[attr] === String(val); btn.classList.toggle('is-on', on); btn.setAttribute(btn.getAttribute('role') === 'tab' ? 'aria-selected' : 'aria-checked', on ? 'true' : 'false'); });
+    const set = (sel, attr, val) => $$(`${sel} .p27-seg-btn`).forEach((btn) => { const on = btn.dataset[attr] === String(val); btn.classList.toggle('is-on', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     set('#p27-brand-tabs', 'brand', state.brand); set('#p27-feed-tabs', 'feed', state.feed); set('#p27-channel-tabs', 'channel', state.channel);
     $('#p27-from').value = state.from;
+    $('#p27-context').textContent = `${BRAND_NAME[state.brand]} · ${CH_LABEL[state.channel]} · ${state.feed ? 'с фидом' : 'без фида'} · декабрь 2026 — декабрь 2027 · лиды`;
   }
   function renderBrand() { paintSegs(); renderBrandHead(); renderMainChart(); renderSeoTable(); renderDirectTable(); renderUplift(); renderSeason(); renderHistoryTable(); renderWordstat(); writeState(); }
   function setBrand(b) { state.brand = b; renderBrand(); }
 
   load().then((data) => {
     D = data;
+    if (Array.isArray(D?.brands?.sf?.channels?.seo?.forecast) && !D.brands.sf.channels.seo.forecast.length) {
+      $('#p27-main').innerHTML = '<section class="empty lock-screen" tabindex="-1" role="region" aria-labelledby="p27-empty-title"><h2 id="p27-empty-title">В источнике нет периодов плана</h2><p>Файл загружен, но таблицы и графики пока не из чего построить. Вернитесь в дашборд по ссылке в шапке или проверьте отчёт после обновления источника.</p></section>';
+      $('#p27-asof').textContent = 'Нет периодов плана'; $('#p27-generated').textContent = '';
+      $('#p27-main .lock-screen').focus({ preventScroll: true }); return;
+    }
+    $('#p27-loading').hidden = true;
     $('#p27-asof').textContent = `Факт по ${fmtDate(D.meta.asOf)}`;
     $('#p27-generated').textContent = `Сборка ${D.meta.generatedAt.slice(0, 10).split('-').reverse().join('.')}`;
     readState();
     renderSummary(); renderMethod(); renderBrand();
+    $('#p27-summary-more').addEventListener('click', (e) => { const full = $('#p27-summary-box').classList.toggle('is-full'); e.currentTarget.setAttribute('aria-expanded', full); e.currentTarget.textContent = full ? 'Свернуть до главного ↑' : 'Весь вывод: проекты, фид и спрос ↓'; });
+    $$('.table-wrap').forEach((wrap) => {
+      wrap.tabIndex = 0;
+      if (!wrap.hasAttribute('aria-label')) wrap.setAttribute('aria-label', `${wrap.closest('article, details')?.querySelector('h3, h4, summary')?.textContent || 'Таблица'} · прокрутка по горизонтали`);
+    });
+    $$('.p27-seg').forEach((group) => group.addEventListener('keydown', (event) => {
+      const buttons = [...group.querySelectorAll('button')], index = buttons.indexOf(event.target);
+      if (index < 0) return;
+      const next = { ArrowLeft: (index - 1 + buttons.length) % buttons.length, ArrowRight: (index + 1) % buttons.length, Home: 0, End: buttons.length - 1 }[event.key];
+      if (next === undefined) return;
+      event.preventDefault(); buttons[next].click(); buttons[next].focus();
+    }));
     $$('#p27-brand-tabs .p27-seg-btn').forEach((btn) => btn.addEventListener('click', () => setBrand(btn.dataset.brand)));
     $$('#p27-feed-tabs .p27-seg-btn').forEach((btn) => btn.addEventListener('click', () => { state.feed = +btn.dataset.feed; renderBrand(); }));
     $$('#p27-channel-tabs .p27-seg-btn').forEach((btn) => btn.addEventListener('click', () => { state.channel = btn.dataset.channel; paintSegs(); renderMainChart(); renderUplift(); writeState(); }));
     $('#p27-from').addEventListener('change', (e) => { state.from = e.target.value; renderMainChart(); writeState(); });
     $$('[data-csv]').forEach((btn) => btn.addEventListener('click', () => csv(btn.dataset.csv)));
-    window.addEventListener('resize', hideTip);
-  }).catch((e) => { if (!['NO_KEY', 'BAD_KEY'].includes(e.message)) lock(`Не удалось загрузить план: ${e.message}`); });
+    let resizeFrame = 0;
+    window.addEventListener('resize', () => {
+      hideTip(); cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        const keep = document.activeElement?.closest?.('#p27-chart,#p27-uplift,#p27-season')?.id;
+        renderMainChart(); renderUplift(); renderSeason();
+        if (keep) $(`#${keep} svg`)?.focus({ preventScroll: true });
+      });
+    });
+  }).catch((e) => { if (!['NO_KEY', 'BAD_KEY'].includes(e.message)) lock(`Не удалось загрузить план: ${e.message}`); })
+    .finally(() => $('#p27-main').setAttribute('aria-busy', 'false'));
+  window.addEventListener('popstate', () => location.reload());
   window.addEventListener('hashchange', () => location.reload());
 })();
