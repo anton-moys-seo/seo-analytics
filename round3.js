@@ -92,7 +92,7 @@
     const view = typeof state !== 'undefined' ? state.view : 'leads';
     const section = document.querySelector('.dashboard-section.active');
     const anchor = view === 'leads' ? section?.querySelector('.chart-card') : view === 'media' ? document.querySelector('#media .media-chart-card') : section?.querySelector('.section-heading')?.nextElementSibling;
-    if (!open && view !== 'leads' && view !== 'media') { root.replaceChildren(); root.hidden = true; return; }
+    if (view !== 'media') { root.replaceChildren(); root.hidden = true; return; }
     if (anchor && anchor !== root && anchor.previousElementSibling !== root) anchor.before(root);
     root.innerHTML = `<button type="button" data-r3-action="toggle" aria-expanded="${open}" aria-controls="r3-delta-body">${open ? 'Закрыть последние изменения' : 'Последние изменения · день / 7 дней'}</button><section id="r3-delta-body" ${open ? '' : 'hidden'} aria-labelledby="r3-delta-title"></section>`;
     if (open) {

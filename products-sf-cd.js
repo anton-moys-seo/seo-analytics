@@ -46,7 +46,6 @@
   }
   function scaffold(section) {
     section.innerHTML = `<div class="section-heading"><div><p class="eyebrow">SEO-продукты</p><h2 id="products-sf-cd-heading">Продукты SF/CD</h2><p class="ps-intro">Динамика поисковых показателей и SEO-воронки по страницам курсов</p></div></div>
-      <article id="ps-observation" class="observation section-observation"></article>
       <div id="ps-notice" class="ps-notice" role="status"></div>
       <article class="chart-card ps-filters"><div class="card-heading"><div><h3>Настройте отчёт</h3><p>Школа, страница, источник и период</p></div></div>
         <div class="ps-filter-grid">
@@ -63,7 +62,7 @@
         <details id="ps-series-details" class="ps-series"><summary>Показать данные графика</summary><div class="table-wrap ps-series-wrap" tabindex="0" aria-label="Данные графика, прокрутка"><table><thead><tr><th scope="col">Период</th><th scope="col">Источник</th><th scope="col">Значение</th><th scope="col">Покрытие</th></tr></thead><tbody id="ps-series-body"></tbody></table></div></details></article>
       <article id="ps-table-card" class="table-card ps-table-card"><div class="card-heading ps-table-heading"><div><h3>Страницы</h3><p>Итоги за выбранный период и покрытие данных</p></div><label class="ps-search-label">Поиск по названию или URL<input id="ps-search" type="search" placeholder="Название или адрес"></label></div>
         <p id="ps-trend-note" class="ps-note ps-trend-note"></p><p class="ps-scroll-hint">Прокрутите таблицу вправо, чтобы увидеть все столбцы.</p><p class="ps-focus-hint">Нажмите на строку — график покажет динамику именно этой страницы. Повторный клик по строке или кнопка «Показать все страницы» вернут динамику всей группы.</p><div class="table-wrap ps-table-wrap" tabindex="0" aria-label="Таблица страниц, прокрутка"><table><thead id="ps-thead"></thead><tbody id="ps-tbody"></tbody></table></div><p id="ps-table-empty" class="ps-note" hidden></p></article>`;
-    refs = Object.fromEntries(['observation','notice','school','page','engine','engine-hint','metric','grain','from','to','error','source-note','kpis','chart-card','chart-title','chart-note','legend','focus-clear','chart','chart-status','chart-empty','series-details','series-body','table-card','trend-note','search','thead','tbody','table-empty'].map((id) => [id, section.querySelector('#ps-' + id)]));
+    refs = Object.fromEntries(['notice','school','page','engine','engine-hint','metric','grain','from','to','error','source-note','kpis','chart-card','chart-title','chart-note','legend','focus-clear','chart','chart-status','chart-empty','series-details','series-body','table-card','trend-note','search','thead','tbody','table-empty'].map((id) => [id, section.querySelector('#ps-' + id)]));
   }
   function restore() {
     const params = new URLSearchParams(location.search);
@@ -291,29 +290,11 @@
     }
     refs['table-empty'].hidden = pages.length > 0; refs['table-empty'].textContent = pages.length ? '' : 'Страницы не найдены.';
   }
-  function renderObservation(selected, points, metric, isBi, focus) {
-    const box = refs.observation; box.replaceChildren();
-    const selectedPage = data.pages.find((p) => p.id === selected.pageId);
-    const name = focus?.name || selectedPage?.name || (selected.school === 'all' ? 'Все страницы SF/CD' : `Все страницы ${SOURCES[selected.school]}`);
-    const metricLabel = refs.metric.selectedOptions[0].textContent;
-    box.append(el('span', `${name} · ${dateLabel(selected.from)}–${dateLabel(selected.to)}`, 'observation-label'));
-    const lastPeriod = [...new Set(points.map((p) => p.period))].sort().at(-1);
-    const last = points.filter((p) => p.period === lastPeriod);
-    if (!last.length) { box.append(el('h3', 'Нет значений для выбранных условий'), el('p', 'Пустые измерения не означают ноль. Проверьте доступные даты источника ниже.')); return; }
-    const amounts = last.map((p) => `${SOURCES[p.engine || (isBi ? 'bi' : selected.engine)] || 'Источник'}: ${value(p.value, metric, isBi)}`).join(' · ');
-    const span = last[0].from === last[0].to ? dateLabel(last[0].from) : `${dateLabel(last[0].from)}–${dateLabel(last[0].to)}`;
-    box.append(el('h3', `${metricLabel} за ${span} · ${amounts}`));
-    box.append(el('p', `Последняя точка графика, не итог за выбранный диапазон — итоги в карточках ниже. ` + last.map((p) => `${SOURCES[p.engine || (isBi ? 'bi' : selected.engine)] || 'Источник'}: ${coverage(p.coverage, !isBi && metric === 'position')}.`).join(' ')));
-    box.append(el('p', isBi ? 'Готовая мера SEO-воронки за этот период; поисковый фильтр к ней не применяется. Пропуски и неполные периоды не дополняем.' : 'Источники показаны отдельно; клики не равны визитам. Пропуски и предварительные дни указаны в покрытии.'));
-    const link = el('button', 'Проверить значения и периоды', 'observation-check'); link.type = 'button'; link.dataset.reveal = 'ps-series-details';
-    link.addEventListener('click', () => { refs['series-details'].hidden = false; refs['series-details'].open = true; }); box.append(link);
-  }
 
   function render() {
     if (!data || !refs) return;
     if (!refs.from.value || !refs.to.value || !refs.from.validity.valid || !refs.to.validity.valid || refs.from.value > refs.to.value) {
       refs.error.hidden = false; refs.error.textContent = 'Проверьте границы периода.';
-      refs.observation.replaceChildren(el('h3', 'Проверьте границы периода'), el('p', 'Наблюдение недоступно: начало и конец периода должны быть заполнены в допустимом порядке.'));
       refs.kpis.hidden = refs['chart-card'].hidden = refs['table-card'].hidden = true;
       return;
     }
@@ -367,7 +348,6 @@
       + refs['chart-note'].textContent;
     refs.chart.setAttribute('aria-label', refs['chart-title'].textContent);
     paintChart(points, metric, isBi); buildTable(selected, isBi, metric, spec);
-    renderObservation(selected, points, metric, isBi, focus);
     window.updateProductsSfCdUrl();
   }
   window.updateProductsSfCdUrl = function () {

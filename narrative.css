@@ -1,15 +1,8 @@
 :root{--chart-grid:#B8B8B8;--window-before:#F5F5F5;--window-after:#E9E9FF;--space-1:4px;--space-5:20px;--space-10:40px;--radius-xs:6px;--radius-pill:999px}
 h1,h2,h3{letter-spacing:-.03em}
-.ux-sidebar{gap:var(--space-3)}
-.ux-report{font-size:13px}
-.ux-link{min-height:48px;gap:var(--space-2)}
-.ux-link-ico{background:var(--surface);width:28px;height:28px;flex-basis:28px}
-.ux-link-ico .ux-ico{width:18px;height:18px}
-.ux-link-label{font-size:14px}
-.ux-tone{background:var(--text)}
-html.ux-shell .section-heading .eyebrow{background:var(--surface)}
-.section-heading h2{font-size:40px}
-.section-heading{margin-bottom:var(--space-5)}
+/* Лиды, Продукты и Прогноз — в прежнем виде (вернули 22.11.2026); новый размер заголовков — у остальных разделов */
+.dashboard-section:not(#leads):not(#products-sf-cd):not(#forecast) .section-heading h2{font-size:40px}
+.dashboard-section:not(#leads):not(#products-sf-cd):not(#forecast) .section-heading{margin-bottom:var(--space-5)}
 .slice-context{display:flex;align-items:baseline;gap:var(--space-2);margin:var(--space-4) 0 var(--space-2);font-size:13px;line-height:1.5}
 .slice-context>span{flex-shrink:0;font-weight:500}
 .slice-context p{margin:0}
@@ -20,21 +13,15 @@ html.ux-shell .section-heading .eyebrow{background:var(--surface)}
 .nw{white-space:nowrap}.observation-caveat{display:inline-block;vertical-align:middle;padding:2px 10px;border-radius:var(--radius-pill);background:var(--mid);font-size:14px;font-weight:500;letter-spacing:0}
 .observation p{margin:0;font-size:14px;line-height:1.5}
 .observation p+p{margin-top:var(--space-2)}
-.lead-observation{background:var(--bg);padding:0;margin-bottom:var(--space-3)}
-.lead-observation h3{font-size:18px;margin:0}
 .section-observation h3{font-size:21px}
 .section-observation .observation-check,.observation-check{border:0;background:transparent;padding:0;cursor:pointer;text-decoration:underline;font-family:Graphik,sans-serif;display:inline-flex;align-items:center;min-height:32px;min-width:24px;color:var(--text);font-size:13px;text-underline-offset:4px}
 .period-status{background:var(--surface);padding:var(--space-3);border-left:3px solid var(--primary);border-radius:var(--radius-xs);font-size:13px;line-height:1.5}
-#lead-kpis .kpi-card{min-height:116px;padding:var(--space-4);gap:var(--space-2)}
-#lead-kpis .kpi-value{font-size:30px}
-#lead-kpis .kpi-caption{font-size:12px}
-#lead-kpis .kpi-spark{height:20px}
-#lead-kpis .kpi-tier-good,#lead-kpis .kpi-tier-mid,#lead-kpis .kpi-tier-low{background:var(--surface)}
-#leads>.chart-card:not(.direction-card){padding:var(--space-6)}
 .chart-filter-bar{position:static}
-#leads .chart-filter-bar{padding:0;background:transparent;gap:var(--space-3);margin-bottom:var(--space-6)}
-#leads .filter-copy{display:none}
-#leads .chart-controls .project-control{grid-column:auto}
+/* Лиды: подсказки и значения графика доступны скринридеру и клавиатуре, но визуально прежний вид */
+#leads .chart-readout,#leads .chart-instruction{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;min-height:0}
+#leads details.chart-data{display:none}
+#leads .chart .last-value rect{fill:#3D3BFF;stroke:none}
+#leads .chart .last-value text{fill:#FFFFFF}
 .reading-guide{font-size:13px;line-height:1.5;margin:0 0 var(--space-4);max-width:80em}
 .chart .grid-line{stroke:var(--chart-grid);stroke-width:1}
 .chart .axis-label{font-size:12px;fill:var(--text)}
@@ -74,9 +61,6 @@ html.ux-shell .section-heading .eyebrow{background:var(--surface)}
 .exp-brand-tab{background:transparent;border-bottom:3px solid transparent;border-radius:var(--radius-xs);padding:var(--space-2) var(--space-3)}
 .exp-brand-tab.active{color:var(--text);background:transparent;border-bottom-color:var(--primary)}
 .exp-brand-tab.active span{color:var(--text)}
-.attention-chip{display:flex;flex-direction:column;align-items:stretch;gap:var(--space-1)}
-.attention-chip-main{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3)}
-.attention-chip-sub{font-size:13px;font-weight:400;text-align:left}
 .lock-screen{max-width:640px;margin:var(--space-10) auto;padding:var(--space-8);background:var(--surface);line-height:1.5}
 .lock-screen:focus{outline:3px solid var(--primary);outline-offset:var(--space-1)}
 .lock-screen h2{margin:0 0 var(--space-3);font-size:28px}
@@ -93,15 +77,10 @@ html.ux-shell .section-heading .eyebrow{background:var(--surface)}
 button:disabled,[aria-disabled="true"]{cursor:not-allowed}
 [aria-busy="true"]{cursor:progress}
 @media(max-width:640px){
-.section-heading h2{font-size:30px}.section-heading{gap:var(--space-3)}
+.dashboard-section:not(#leads):not(#products-sf-cd):not(#forecast) .section-heading h2{font-size:30px}.section-heading{gap:var(--space-3)}
 .section-heading .rec-csv-button{font-size:12px;max-width:100%;white-space:normal}
 .slice-context{display:block;margin-top:var(--space-3)}.slice-context>span{display:none}
-.observation h3{font-size:21px}.observation p{font-size:13px}.lead-observation h3{font-size:17px}
-#lead-kpis .kpi-card{min-height:96px}#lead-kpis .kpi-value{font-size:28px}
-#lead-kpis>.kpi-card.primary{grid-column:auto}#lead-kpis>.kpi-card.primary:first-child~.kpi-card:last-child:nth-child(even){grid-column:auto}
-#lead-kpis .kpi-spark{display:none}
-#leads>.chart-card:not(.direction-card){padding:var(--space-4)}
-#leads .chart-controls .project-control{grid-column:1/-1}
+.observation h3{font-size:21px}.observation p{font-size:13px}
 .chart-readout{font-size:12px;min-height:60px;padding:var(--space-3)}
 .exp-window-grid{gap:var(--space-2)}
 .exp-window-card h4{font-size:14px}.exp-window-card p{font-size:12px}

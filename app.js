@@ -166,10 +166,10 @@ function executionTier(execution) {
   return execution >= 1 ? 'good' : execution >= 0.9 ? 'mid' : 'low';
 }
 // Шкала полосы выполнения 0–150 %; отметка — 100 % плана. Значение выше 150 % упирается в край.
-function executionMeter(execution, tier = executionTier(execution), labelled = false) {
+function executionMeter(execution, tier = executionTier(execution)) {
   if (!tier) return '';
   const width = Math.max(0, Math.min(execution, 1.5)) / 1.5 * 100;
-  return `<span class="exec-meter exec-${tier}" aria-hidden="true"><i style="width:${width.toFixed(1)}%"></i><b></b></span>${labelled ? '<span class="exec-scale" title="Шкала 0–150 %, риска — 100 % плана"><span>0</span><span>100 %</span><span>150<i> %</i></span></span>' : ''}`;
+  return `<span class="exec-meter exec-${tier}" aria-hidden="true"><i style="width:${width.toFixed(1)}%"></i><b></b></span>`;
 }
 function shareMeter(share) {
   if (share === null || share === undefined || Number.isNaN(share)) return '';
@@ -529,7 +529,7 @@ function renderLeadSummary() {
       const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
     });
     const execCell = document.createElement('td'); execCell.innerHTML = executionCell(execution); row.appendChild(execCell);
-    attention.push({ id: entity.id, name: entity.name, execution, plan, fact });
+    attention.push({ id: entity.id, name: entity.name, execution });
     const fcCell = document.createElement('td');
     fcCell.innerHTML = forecastCell(entity.fact, entity.dates, entity.id === 'spo' && spoMonth ? spoMonth.total : null);
     row.appendChild(fcCell);
@@ -558,7 +558,7 @@ function renderLeadAttention(items, period) {
   box.hidden = !items.length;
   box.innerHTML = `<div class="attention-head"><p class="attention-title">${!planned.length ? 'План на период не задан' : lagging.length ? 'Требует внимания' : 'Все проекты с планом в плане'}</p>`
     + `<p class="attention-note">Сводка за ${period}: ${planned.length ? `план выполняют ${onTrack} из ${planned.length}${noPlan ? ` · без полного плана: ${noPlan}` : ''}. Нажмите на проект, чтобы открыть его график.` : `нет плановых данных по ${items.length} ${items.length === 1 ? 'проекту' : 'проектам'}.`}</p></div>`
-    + (lagging.length ? `<div class="attention-list">${lagging.map((item) => `<a class="attention-chip exec-${executionTier(item.execution)}" data-lead="${item.id}" href="${attentionHref(item.id)}"><span class="attention-chip-main"><span>${item.name}</span><b>${pctf.format(item.execution)}</b></span><span class="attention-chip-sub">Факт ${formatInt(item.fact)} из ${formatNumber(item.plan)}</span></a>`).join('')}</div>` : '');
+    + (lagging.length ? `<div class="attention-list">${lagging.map((item) => `<a class="attention-chip exec-${executionTier(item.execution)}" data-lead="${item.id}" href="${attentionHref(item.id)}"><span>${item.name}</span><b>${pctf.format(item.execution)}</b></a>`).join('')}</div>` : '');
 }
 
 function leadPageGroup(entity) {
@@ -613,13 +613,6 @@ function renderLead() {
   const factSpark = sparkline(chart.series[chart.series.length - 1].values);
   const period = formatPeriod(state.leadFrom, state.leadTo);
   const tier = executionTier(execution);
-  $('#lead-context').textContent = `${entity.name} · ${period} · ${group ? group.name : 'Все страницы'} · ${entity.scope}`;
-  const comparison = $('#lead-observation');
-  comparison.innerHTML = group || plan === null || !plan
-    ? `<p>${group ? 'Для этой группы страниц отдельного плана нет. Ниже сохранены показатели к плану всего проекта.' : 'Сравнение недоступно: план не задан на все дни или равен нулю.'}</p>`
-    : `<h3>${deviation === 0 ? 'Факт совпадает с планом' : `Факт ${deviation < 0 ? 'ниже' : 'выше'} плана за выбранные дни`}</h3>`;
-  const freshness = `Срез данных: ${formatDate(state.data.meta.asOf)}.`;
-  $('#lead-reading').textContent = `${group ? 'Показан только факт группы; отдельного плана для неё нет.' : 'Как читать: синяя линия — факт, чёрный пунктир — план. Розовая зона между ними — ниже плана, мятная — выше. Шкала от нуля.'} ${freshness} ${state.leadGranularity !== 'day' ? 'Крайние недели или месяцы могут содержать не все дни: суммируются только выбранные даты.' : ''}`;
   $('#lead-kpis').innerHTML = group ? [
     kpi(`Факт за период: ${group.name}`, formatInt(groupFact), period, true, factSpark),
     kpi('Доля от проекта', share === null ? '—' : pctf.format(share), 'Факт группы к факту всего проекта', false, shareMeter(share)),
@@ -629,7 +622,7 @@ function renderLead() {
     kpi('Факт за период', formatInt(fact), period, true, factSpark),
     kpi('План за период', formatNumber(plan), plan === null ? 'План за период недоступен: есть дни без плана' : period),
     kpi('Отклонение', formatNumber(deviation), plan === null ? 'Недоступно без плана' : 'Факт минус план', false, '', deviation === null ? '' : deviation >= 0 ? 'kpi-delta-up' : 'kpi-delta-down'),
-    kpi('Выполнение', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана' : 'Факт к плану', false, executionMeter(execution, tier, true), tier ? `kpi-tier-${tier}` : ''),
+    kpi('Выполнение', execution === null ? '—' : pctf.format(execution), plan === null ? 'Недоступно без плана' : 'Факт к плану', false, executionMeter(execution, tier), tier ? `kpi-tier-${tier}` : ''),
   ].join('');
   $('#lead-chart-title').textContent = `${entity.name}: ${group ? 'факт по страницам' : 'план и факт лидов'}`;
   $('#lead-chart-note').textContent = `${entity.scope} · ${period} · ${granularityLabel(state.leadGranularity)}${group ? ` · страницы: ${group.name} · план по страницам не детализирован и не показывается` : plan === null ? ' · есть дни без плана; сравнение за весь период недоступно' : ''}`;
@@ -896,12 +889,10 @@ function renderForecast() {
   const fc = state.forecast;
   if (!document.getElementById('forecast')) return;
   if (!fc) {
-    window.Round3?.forecast(null);
     sectionStatus('forecast', fc === undefined ? 'loading' : 'error', () => ensureForecast(true));
     return;
   }
   sectionStatus('forecast', 'ready');
-  window.Round3?.forecast(fc);
   const meta = fc.meta;
   const months = meta.months || { m3: 'Сентябрь', m2: 'Октябрь', cur: 'Ноябрь', next: 'Декабрь' };
   const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
@@ -921,10 +912,7 @@ function renderForecast() {
       setText('forecast-warning-text', '');
     }
   }
-  const observation = $('#forecast-observation');
-  observation.innerHTML = `<span class="observation-label">Основания сценариев · срез ${formatDate(meta.asOf)}</span><h3>Итог ${fcGen(months.cur)} включает оценку, ${months.next.toLowerCase()} — сценарии</h3><p>Тренд продолжает текущую ставку, сезонность учитывает календарь, спрос покрывает только core. Это расчётные условия, не установленные причины будущего изменения.</p>`;
   if (meta.status === 'awaiting-november') {
-    observation.textContent = meta.message;
     $('#forecast-kpis').textContent = meta.message;
     $('#forecast-projects-note').textContent = meta.message;
     $('#forecast-directions-note').textContent = 'Прогноз появится после обновления ноябрьского факта.';
