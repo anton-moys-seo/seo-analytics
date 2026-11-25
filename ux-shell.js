@@ -34,7 +34,6 @@
   const URL_KEYS = {
     leads: ['lead', 'page', 'grain', 'from', 'to', 'direction', 'directionGrain', 'directionFrom', 'directionTo'],
     media: ['project', 'section', 'grain', 'from', 'to', 'plan', 'planView'],
-    recovery: ['page', 'engine', 'grain', 'from', 'to', 'compare', 'group', 'sort', 'dir', 'tablePage'],
     updates: ['month', 'article', 'q', 'window', 'grain', 'tail', 'from', 'to', 'focusEvent', 'sort', 'dir', 'page'],
     'updates-all': ['month', 'section', 'article', 'q', 'status', 'window', 'grain', 'from', 'to', 'sort', 'dir', 'page', 'event'],
     experiment: ['brand', 'product', 'metric', 'grain', 'win', 'from', 'to'],
@@ -59,7 +58,7 @@
     .filter(([, value]) => value != null)
     .map(([key, value]) => [key, key === '_filters' ? JSON.stringify(value) : value])).toString();
   const rawReplace = history.replaceState.bind(history), rawPush = history.pushState.bind(history);
-  const extraFilters = { recovery: ['rec-page-search', 'rec-pages-search'], 'products-sf-cd': ['ps-search'] };
+  const extraFilters = { 'products-sf-cd': ['ps-search'] };
   function remember(url, view) {
     const values = Object.fromEntries(keysFor(view).map((key) => [key, url.searchParams.get(key)]));
     const previous = readContext(url.searchParams, view);
@@ -128,7 +127,7 @@
   for (const type of ['input', 'change', 'click']) doc.addEventListener(type, (event) => { if (!restoringFilters && event.target.closest?.(EDIT)) editRevision++; }, true);
   const experimentControls = { product: 'exp-product', metric: 'exp-metric', win: 'exp-window', grain: 'exp-granularity', from: 'exp-date-from', to: 'exp-date-to' };
   doc.addEventListener('DOMContentLoaded', () => {
-    for (const [view, name] of [['recovery', 'initRecovery'], ['experiment', 'initExperiment']]) {
+    for (const [view, name] of [['experiment', 'initExperiment']]) {
       const init = window[name];
       if (init) window[name] = (...args) => (ready[view] = Promise.resolve(init(...args)));
     }
@@ -159,7 +158,7 @@
         el.dispatchEvent(new Event(el.type === 'search' ? 'input' : 'change', { bubbles: true }));
       };
       for (const id of extraFilters[view] || []) change(id, saved._filters?.[id] || '');
-      const restore = { recovery: 'restoreRecoveryUrl', updates: 'restoreUpdatesUrl' }[view];
+      const restore = { updates: 'restoreUpdatesUrl' }[view];
       if (restore && window[restore]) window[restore](params);
       else if (snapshot && view === 'experiment') {
         window.renderExperiment?.();
@@ -210,7 +209,6 @@
     ] },
     { id: 'media', title: 'Медиатрафик', tone: 'mint', items: [
       { view: 'media', label: 'Трафик', hint: 'SEO и прямой трафик, редакции', icon: 'traffic' },
-      { view: 'recovery', label: 'Мониторинг метатегов', hint: 'Когорта страниц до и после', icon: 'tags' },
       { view: 'updates', label: 'Апдейты', hint: 'Статьи: трафик до и после обновления', icon: 'refresh' },
       { view: 'updates-all', label: 'Апдейты ALL', hint: 'Все апдейты: трафик, позиции, сигналы', icon: 'stack' },
     ] },
@@ -223,8 +221,7 @@
 
   // --- Свежесть: дата среза из meta каждого JSON, как только раздел его загрузил. ---
   const FILE_VIEWS = {
-    'data.json': ['leads', 'media'], 'forecast.json': ['forecast'], 'recovery.json': ['recovery'],
-    'updates.json': ['updates'], 'updates-all.json': ['updates-all'], 'experiment.json': ['experiment'],
+    'data.json': ['leads', 'media'], 'forecast.json': ['forecast'],     'updates.json': ['updates'], 'updates-all.json': ['updates-all'], 'experiment.json': ['experiment'],
     'products-sf-cd.json': ['products-sf-cd'],
   };
   const fresh = {};
@@ -325,7 +322,7 @@
   const EXTERNAL = Object.fromEntries(ITEMS.filter((it) => it.href).map((it) => [it.view, it.href]));
   function go(view) {
     if (EXTERNAL[view]) { location.href = viewUrl(view, EXTERNAL[view]).href; return; }
-    const btn = $(`.nested-tab[data-target="${view}"]:not([data-media-results])`) || $(`[data-target="${view}"]`);
+    const btn = $(`.nested-tab[data-target="${view}"]`) || $(`[data-target="${view}"]`);
     if (btn) btn.click();
     else if (typeof activateView === 'function') activateView(view);
     else return;

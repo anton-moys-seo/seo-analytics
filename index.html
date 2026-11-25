@@ -53,11 +53,7 @@
     <div id="media-navigation" hidden>
       <nav class="nested-tabs" aria-label="Медиатрафик">
         <button class="nested-tab" data-target="media" type="button">Трафик</button>
-        <button class="nested-tab" data-target="recovery" data-media-results type="button">Результаты</button>
         <button class="nested-tab" data-target="updates-all" type="button">Апдейты ALL</button>
-      </nav>
-      <nav id="media-results-navigation" class="nested-tabs results-tabs" aria-label="Результаты медиатрафика" hidden>
-        <button class="nested-tab" data-target="recovery" type="button">Мониторинг метатегов</button>
       </nav>
     </div>
 
@@ -380,134 +376,6 @@
       </div>
     </section>
 
-    <section id="recovery" class="dashboard-section" aria-labelledby="recovery-heading">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Яндекс Метрика 45205785 · Когорта «Не восстановилась»</p>
-          <h2 id="recovery-heading">Мониторинг метатегов</h2>
-        </div>
-      </div>
-
-      <div id="rec-kpis" class="kpi-grid" aria-live="polite"></div>
-
-      <article class="chart-card">
-        <div class="chart-filter-bar" aria-label="Фильтры мониторинга метатегов">
-          <div class="filter-copy">
-            <span class="filter-index">1</span>
-            <div><strong>Настройте график</strong><p>Страница когорты, поисковая система, детализация и период.</p></div>
-          </div>
-          <div class="controls-row chart-controls">
-            <label class="select-control project-control rec-page-control">
-              <span>Страница</span>
-              <input id="rec-page-search" type="search" placeholder="Поиск по адресу страницы" autocomplete="off">
-              <select id="rec-page" aria-label="Страница для графика"></select>
-            </label>
-            <label class="select-control project-control"><span>Источник</span><select id="rec-engine"></select></label>
-            <label class="select-control grain-control"><span>Детализация</span><select id="rec-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
-            <label class="date-control"><span>Дата с</span><input id="rec-date-from" type="date"></label>
-            <label class="date-control"><span>Дата по</span><input id="rec-date-to" type="date"></label>
-          </div>
-        </div>
-        <div class="card-heading chart-heading-safe">
-          <div>
-            <h3 id="rec-chart-title">SEO-визиты когорты</h3>
-            <p id="rec-chart-note"></p>
-            <p id="rec-url-line" class="rec-url-line"></p>
-          </div>
-          <div class="legend rec-legend" id="rec-legend" aria-label="Легенда"></div>
-        </div>
-        <label id="rec-compare-control" class="rec-compare" hidden><input type="checkbox" id="rec-compare"><span>Сравнить: весь SEO, Google и Яндекс</span></label>
-        <div id="rec-chart" class="chart" role="group" aria-label="График визитов из поисковых систем по выбранному срезу"></div>
-      </article>
-
-      <article id="rec-growth-section" class="chart-card rec-growth-section" aria-labelledby="rec-growth-title">
-        <div class="card-heading">
-          <div><h3 id="rec-growth-title">Выросли и не выросли</h3><p id="rec-growth-rule" aria-live="polite"></p></div>
-        </div>
-        <div class="chart-filter-bar" aria-label="Фильтры графиков групп страниц">
-          <div class="filter-copy"><span class="filter-index">2</span><div><strong>Настройте графики групп</strong><p>Источник, детализация и период общие с графиком выше. Группы всегда считаются по всему списку страниц.</p></div></div>
-          <div class="controls-row chart-controls">
-            <label class="select-control project-control"><span>Источник</span><select id="rec-groups-engine"></select></label>
-            <label class="select-control grain-control"><span>Детализация</span><select id="rec-groups-granularity"><option value="day">По дням</option><option value="week">По неделям</option><option value="month">По месяцам</option></select></label>
-            <label class="date-control"><span>Дата с</span><input id="rec-groups-date-from" type="date"></label>
-            <label class="date-control"><span>Дата по</span><input id="rec-groups-date-to" type="date"></label>
-          </div>
-        </div>
-        <div class="rec-growth-grid">
-          <section class="rec-growth-card" aria-labelledby="rec-grown-title">
-            <h4 id="rec-grown-title">Выросли</h4>
-            <p id="rec-grown-count" class="rec-growth-count" aria-live="polite">—</p>
-            <p id="rec-grown-stats" class="rec-growth-stats"></p>
-            <div id="rec-grown-chart" class="chart" role="group" aria-label="Суммарные визиты страниц с ростом"></div>
-            <button type="button" class="link-button" data-growth-group="grown">Показать страницы группы</button>
-          </section>
-          <section class="rec-growth-card" aria-labelledby="rec-notgrown-title">
-            <h4 id="rec-notgrown-title">Не выросли</h4>
-            <p id="rec-notgrown-count" class="rec-growth-count" aria-live="polite">—</p>
-            <p id="rec-notgrown-stats" class="rec-growth-stats"></p>
-            <div id="rec-notgrown-chart" class="chart" role="group" aria-label="Суммарные визиты страниц без роста"></div>
-            <button type="button" class="link-button" data-growth-group="notgrown">Показать страницы группы</button>
-          </section>
-        </div>
-        <p id="rec-growth-note" class="rec-growth-note"></p>
-      </article>
-
-      <article class="table-card">
-        <div class="card-heading">
-          <div>
-            <h3>Поисковые системы</h3>
-            <p id="rec-engine-note"></p>
-          </div>
-        </div>
-        <div class="table-wrap compact" tabindex="0" role="region" aria-label="Таблица, прокрутка">
-          <table>
-            <thead><tr><th>Поисковая система</th><th>Визиты</th><th>Доля SEO</th></tr></thead>
-            <tbody id="rec-engine-body"></tbody>
-          </table>
-        </div>
-      </article>
-
-      <article class="table-card">
-        <div class="card-heading">
-          <div>
-            <h3>Страницы когорты</h3>
-            <p id="rec-pages-note"></p>
-          </div>
-        </div>
-        <div class="rec-pages-tools">
-          <label class="select-control"><span>Группа страниц</span><select id="rec-table-group"><option value="all">Все страницы</option><option value="grown">Выросли</option><option value="notgrown">Не выросли</option><option value="unclassified">Недостаточно данных</option></select></label>
-          <input id="rec-pages-search" type="search" aria-label="Поиск в таблице страниц" placeholder="Поиск страницы по адресу" autocomplete="off">
-          <button id="rec-csv" class="rec-csv-button" type="button" title="Дневные визиты выбранной страницы и поисковой системы за выбранный период. Только данные Метрики из recovery.json — исходный Excel не публикуется.">Скачать CSV данных графика</button>
-        </div>
-        <div class="table-wrap compact" tabindex="0" role="region" aria-label="Таблица, прокрутка">
-          <table id="rec-pages-table">
-            <thead id="rec-pages-head"><tr>
-              <th><button class="th-sort" data-sort="path" type="button">Страница</button></th>
-              <th><button class="th-sort" data-sort="period" type="button">За период</button></th>
-              <th><button class="th-sort" data-sort="pre" type="button">До, в день</button></th>
-              <th><button class="th-sort" data-sort="post" type="button">После, в день</button></th>
-              <th><button class="th-sort" data-sort="delta" type="button">После к до</button></th>
-            </tr></thead>
-            <tbody id="rec-pages-body"></tbody>
-          </table>
-        </div>
-        <div class="rec-pager">
-          <span id="rec-page-info"></span>
-          <button id="rec-page-prev" type="button">Назад</button>
-          <button id="rec-page-next" type="button">Вперёд</button>
-        </div>
-      </article>
-
-      <article class="table-card rec-method">
-        <div class="card-heading">
-          <div>
-            <h3>Методология и ограничения</h3>
-            <p>Что именно измеряется и чего этот отчёт не утверждает.</p>
-          </div>
-        </div>
-        <ul id="rec-method-list"></ul>
-      </article>
-    </section>
 
     <section id="updates" class="dashboard-section" aria-labelledby="updates-heading">
       <div class="section-heading">
@@ -743,7 +611,6 @@
     <span>Power BI · Яндекс Метрика</span>
   </footer>
   <script src="ux-shell.js?v=20261122-r1" defer></script>
-  <script src="recovery.js?v=20261122-r1" defer></script>
   <script src="experiment.js?v=20261122-r1" defer></script>
   <script src="xlsx-export.js?v=20261002-1" defer></script>
   <script src="updates.js?v=20261122-r1" defer></script>

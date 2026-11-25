@@ -1111,7 +1111,7 @@ function loadUrlState() {
   };
   const leads = context('leads'), media = context('media');
   const dateParam = (source, name) => /^\d{4}-\d{2}-\d{2}$/.test(source.get(name) || '') ? source.get(name) : null;
-  if (['leads', 'products-sf-cd', 'media', 'recovery', 'updates', 'updates-all', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
+  if (['leads', 'products-sf-cd', 'media', 'updates', 'updates-all', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
   if (state.data.leads.entities.some((item) => item.id === leads.get('lead'))) state.leadId = leads.get('lead');
   if (leads.get('page')) {
     const entity = state.data.leads.entities.find((item) => item.id === state.leadId);
@@ -1141,7 +1141,6 @@ function updateUrl() {
   }
   if (state.view === 'updates-all') { if (window.updateUpdatesAllUrl) window.updateUpdatesAllUrl(); return; }
   if (state.view === 'updates') { if (window.updateUpdatesUrl) window.updateUpdatesUrl(); return; }
-  if (state.view === 'recovery') { if (window.updateRecoveryUrl) window.updateRecoveryUrl(); return; }
   if (state.view === 'experiment') { if (window.updateExperimentUrl) window.updateExperimentUrl(); return; }
   const params = new URLSearchParams();
   params.set('view', state.view);
@@ -1171,9 +1170,8 @@ function activateView(target, syncUrl = true) {
   if (syncUrl && target !== state.view) window.DashboardUrl?.navigate(target);
   state.view = target;
   if (state.data?.meta?.asOf) $('#as-of').textContent = `Данные по ${formatDate(state.data.meta.asOf)}`;
-  const isMedia = ['media', 'recovery', 'updates', 'updates-all'].includes(target);
+  const isMedia = ['media', 'updates', 'updates-all'].includes(target);
   const isLeads = ['leads', 'products-sf-cd'].includes(target);
-  const isResults = ['recovery', 'updates'].includes(target);
   document.querySelectorAll('.section-tabs .tab-button').forEach((button) => {
     const active = button.dataset.target === (isMedia ? 'media' : isLeads ? 'leads' : target);
     button.classList.toggle('active', active);
@@ -1181,9 +1179,8 @@ function activateView(target, syncUrl = true) {
   });
   $('#leads-navigation').hidden = !isLeads;
   $('#media-navigation').hidden = !isMedia;
-  $('#media-results-navigation').hidden = !isResults;
   document.querySelectorAll('.nested-tab').forEach((button) => {
-    const active = button.hasAttribute('data-media-results') ? isResults : button.dataset.target === target;
+    const active = button.dataset.target === target;
     button.classList.toggle('active', active);
     button.setAttribute('aria-current', active ? 'page' : 'false');
   });
@@ -1196,7 +1193,6 @@ function activateView(target, syncUrl = true) {
   if (target === 'products-sf-cd') { if (window.ensureProductsSfCd) window.ensureProductsSfCd(); }
   else if (target === 'updates-all') { if (window.ensureUpdatesAll) window.ensureUpdatesAll(); }
   else if (target === 'updates') { if (window.ensureUpdates) window.ensureUpdates(); else if (window.renderUpdates) window.renderUpdates(); }
-  else if (target === 'recovery') { if (window.renderRecovery) window.renderRecovery(); }
   else if (target === 'experiment') { if (window.renderExperiment) window.renderExperiment(); }
   else if (target === 'media') renderMedia();
   else if (target === 'forecast') renderForecast();
@@ -1251,7 +1247,6 @@ async function init() {
     setupMediaControls(); setupTabs(); renderLeadSummary(); renderLead(); renderDirection(); renderMedia();
     if (window.MediaPlan) MediaPlan.load().finally(() => { if (state.view === 'media') { renderMedia(); updateUrl(); } });
     activateView(state.view, false);
-    if (window.initRecovery) window.initRecovery();
     if (window.initExperiment) window.initExperiment();
     if (state.yoy === undefined) {
       loadJSON('yoy.json')

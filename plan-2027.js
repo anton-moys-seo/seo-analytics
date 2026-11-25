@@ -22,11 +22,10 @@
   let D = null;
 
   const planKeys = ['brand', 'feed', 'channel', 'from'];
-  const dashboardViews = ['leads', 'products-sf-cd', 'forecast', 'media', 'recovery', 'updates', 'updates-all', 'experiment'];
+  const dashboardViews = ['leads', 'products-sf-cd', 'forecast', 'media', 'updates', 'updates-all', 'experiment'];
   const dashboardKeys = {
     leads: ['lead', 'page', 'grain', 'from', 'to', 'direction', 'directionGrain', 'directionFrom', 'directionTo'],
     media: ['project', 'section', 'grain', 'from', 'to', 'plan', 'planView'],
-    recovery: ['page', 'engine', 'grain', 'from', 'to', 'compare', 'group', 'sort', 'dir', 'tablePage'],
     updates: ['month', 'article', 'q', 'window', 'grain', 'tail', 'from', 'to', 'focusEvent', 'sort', 'dir', 'page'],
     'updates-all': ['month', 'section', 'article', 'q', 'status', 'window', 'grain', 'from', 'to', 'sort', 'dir', 'page', 'event'],
     experiment: ['brand', 'product', 'metric', 'grain', 'win', 'from', 'to'],
