@@ -28,6 +28,7 @@
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     close: '<path d="M6 6l12 12M18 6L6 18"/>',
     clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+    megaphone: '<path d="M4 10v4h3l7 4V6L7 10z"/><path d="M17.5 9a4 4 0 0 1 0 6"/>',
   };
   const icon = (name, cls = 'ux-ico') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
@@ -38,6 +39,7 @@
     'updates-all': ['month', 'section', 'article', 'q', 'status', 'window', 'grain', 'from', 'to', 'sort', 'dir', 'page', 'event'],
     experiment: ['brand', 'product', 'metric', 'grain', 'win', 'from', 'to'],
     'products-sf-cd': ['ps_school', 'ps_page', 'ps_engine', 'ps_metric', 'ps_grain', 'ps_from', 'ps_to', 'ps_focus'],
+    integrations: ['in_month', 'in_school', 'in_chain'],
     'plan-2027': ['brand', 'feed', 'channel', 'from'],
   };
   const owner = (view) => view === 'forecast' ? 'leads' : view;
@@ -202,6 +204,7 @@
     { id: 'leads', title: 'Лиды', tone: 'lime', items: [
       { view: 'leads', label: 'План и факт', hint: 'Выполнение плана по проектам и направлениям', icon: 'target' },
       { view: 'products-sf-cd', label: 'Продукты SF/CD', hint: 'Страницы курсов: поиск и BI-метрики', icon: 'box' },
+      { view: 'integrations', label: 'Интеграции', hint: 'Блогеры месяца: курсы, школы и эффект на SEO', icon: 'megaphone' },
     ] },
     { id: 'forecast', title: 'Прогноз', tone: 'peach', items: [
       { view: 'forecast', label: `${afterColon(tabText('forecast'), 'Следующий месяц')}: сценарии`, hint: 'Тренд, сезонность и спрос', icon: 'forecast' },
@@ -222,7 +225,7 @@
   // --- Свежесть: дата среза из meta каждого JSON, как только раздел его загрузил. ---
   const FILE_VIEWS = {
     'data.json': ['leads', 'media'], 'forecast.json': ['forecast'],     'updates.json': ['updates'], 'updates-all.json': ['updates-all'], 'experiment.json': ['experiment'],
-    'products-sf-cd.json': ['products-sf-cd'],
+    'products-sf-cd.json': ['products-sf-cd'], 'integrations.json': ['integrations'],
   };
   const fresh = {};
   function recordMeta(name, data) {
@@ -387,6 +390,16 @@
   const observer = new MutationObserver(paint);
   $$('.dashboard-section').forEach((s) => observer.observe(s, { attributes: true, attributeFilter: ['class'] }));
   paint();
+  // Переименование пункта на лету: подпись прогноза приходит из forecast.json («Январь: сценарии» и т. д.).
+  window.UXShell = Object.assign(window.UXShell || {}, {
+    relabel(view, label) {
+      const item = byView[view];
+      if (!item || !label || item.label === label) return;
+      item.label = label;
+      $$(`.ux-link[data-view="${view}"] .ux-link-label`, sidebar).forEach((node) => { node.textContent = label; });
+      paint();
+    },
+  });
 
   // --- Мобильное меню ---
   const burger = $('.ux-burger', topbar);

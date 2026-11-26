@@ -692,7 +692,7 @@ function renderLeadPages(entity, periodIndexes) {
     + months.map((month, j) => `<td>${cell(totals[j], totals[j])}</td>`).join('')
     + `<td>${cell(periodTotal, periodTotal)}</td></tr>`);
   $('#lead-pages-tbody').innerHTML = rows.join('');
-  $('#lead-pages-note').textContent = `Доля типа страниц в лидах проекта за дни месяца, попавшие в выбранный период (${formatPeriod(state.leadFrom, state.leadTo)}); в ячейке — доля и число лидов. Факт — по справочнику типов страниц модели; план по страницам не детализирован.`;
+  $('#lead-pages-note').textContent = `Доля типа страниц в лидах проекта за дни месяца, попавшие в выбранный период (${formatPeriod(state.leadFrom, state.leadTo)}); в ячейке — доля и число лидов. Факт — по справочнику типов страниц модели; «Фиды» — лиды с блока курсов в Яндексе (utm_source yandex-feed), они вынесены из остальных типов, поэтому доли в сумме дают 100 %. План по страницам не детализирован.`;
 }
 
 function blogGroupOf(entity) {
@@ -847,9 +847,18 @@ function forecastDemandCell(row, total) {
   return `<td class="fc-d"${factor || cover ? ` title="${factor}${cover}"` : ''}>${formatInt(row.nextDemand)}${cover ? '<span class="fc-soft">*</span>' : ''}</td>`;
 }
 
+// Пометка строки, где ставку и тренд считали по ряду без избытка от интеграций: значения до очистки — в подсказке.
+function forecastCleanedMark(row) {
+  const c = row.cleaned;
+  if (!c) return '';
+  const parts = [`без интеграций: −${formatInt(Math.round(c.trendWindowLeads))} лид. в окне тренда, −${formatInt(Math.round(c.rateWindowLeads))} в неделе ставки`];
+  if (c.nextTrendRaw != null) parts.push(`до очистки: тренд ${formatInt(c.nextTrendRaw)}, сезонность ${formatInt(c.nextSeasonalRaw)}${c.nextDemandRaw != null ? `, спрос ${formatInt(c.nextDemandRaw)}` : ''}`);
+  return ` <span class="fc-cleaned" title="${parts.join('; ')}" aria-label="${parts.join('; ')}">очищено</span>`;
+}
+
 function forecastRow(row, total) {
   return `<tr${total ? ' class="direction-total"' : ''}>`
-    + `<td>${row.name}</td>`
+    + `<td>${row.name}${forecastCleanedMark(row)}</td>`
     + `<td>${formatInt(row.m3)}</td><td>${formatInt(row.m2)}</td>`
     + `<td>${formatInt(row.curFact)}</td>`
     + `<td class="fc-soft">+${formatInt(row.curRemaining)}</td>`
@@ -862,6 +871,15 @@ function forecastRow(row, total) {
 }
 
 let forecastRequest = null;
+// Подпись вкладки прогноза — по целевому месяцу из forecast.json: «Январь: сценарии» после старта декабря и т. д.
+function relabelForecast(data) {
+  const next = data?.meta?.months?.next;
+  if (!next) return;
+  const button = document.querySelector('.section-tabs [data-target="forecast"]');
+  if (button) button.textContent = `Прогноз: ${next.toLowerCase()}`;
+  window.UXShell?.relabel?.('forecast', `${next}: сценарии`);
+}
+
 function ensureForecast(retry = false) {
   if (forecastRequest) return forecastRequest;
   if (!retry && state.forecast !== undefined) return Promise.resolve(state.forecast);
@@ -869,7 +887,7 @@ function ensureForecast(retry = false) {
   state.forecast = undefined;
   if (state.view === 'forecast') renderForecast();
   forecastRequest = loadJSON('forecast.json')
-    .then((data) => { state.forecast = data; return data; })
+    .then((data) => { state.forecast = data; relabelForecast(data); return data; })
     .catch(() => { state.forecast = null; return null; })
     .finally(() => {
       forecastRequest = null;
@@ -883,6 +901,28 @@ function ensureForecast(retry = false) {
       }
     });
   return forecastRequest;
+}
+
+function renderForecastIntegrations(meta) {
+  const box = document.getElementById('forecast-integrations');
+  if (!box) return;
+  const info = meta.integrations;
+  box.hidden = !info;
+  if (!info) return;
+  const windows = info.windows || [];
+  const fmtD = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
+  if (!windows.length) {
+    $('#forecast-integrations-text').textContent = 'В окне тренда нет заметных цепочек блогерских интеграций — ставку и тренд считали по исходному факту.';
+    $('#forecast-integrations-list').innerHTML = '';
+    $('#forecast-integrations-effect').innerHTML = '';
+    return;
+  }
+  const total = windows.reduce((s, w) => s + (w.leadsInTrendWindow ?? w.leads), 0);
+  $('#forecast-integrations-text').textContent = `Ставку последних 7 дней и тренд считаем без всплесков SEO-лидов от прошедших блогерских интеграций — прогноз показывает уровень без новых роликов. Из рядов вычтено ${formatInt(Math.round(total))} лидов за ${windows.length} ${windows.length === 1 ? 'окно' : windows.length < 5 ? 'окна' : 'окон'}; факт месяцев в таблицах не меняется. Подробности — на вкладке «Интеграции».`;
+  const changed = [...(state.forecast.projects || []), ...(state.forecast.directions || [])].filter((r) => r.cleaned && r.cleaned.nextTrendRaw != null && (r.cleaned.nextTrendRaw !== r.nextTrend || r.cleaned.nextSeasonalRaw !== r.nextSeasonal));
+  const arrow = (a, b) => (a === b ? formatInt(b) : `${formatInt(a)} → <b>${formatInt(b)}</b>`);
+  $('#forecast-integrations-effect').innerHTML = changed.length ? '<p>Что изменилось в прогнозе:</p><ul>' + changed.map((r) => `<li>${r.name}: тренд ${arrow(r.cleaned.nextTrendRaw, r.nextTrend)}, сезонность ${arrow(r.cleaned.nextSeasonalRaw, r.nextSeasonal)}${r.nextDemand != null && r.cleaned.nextDemandRaw != null ? `, спрос ${arrow(r.cleaned.nextDemandRaw, r.nextDemand)}` : ''}</li>`).join('') + '</ul><p>Окна, которые вычли:</p>' : '';
+  $('#forecast-integrations-list').innerHTML = windows.map((w) => `<li><b>−${formatInt(Math.round(w.leadsInTrendWindow ?? w.leads))}</b> · ${w.courseName} · ${w.target} · ${fmtD(w.window[0])}–${fmtD(w.window[1])}<span> · ${w.bloggers.map((b) => b.split('-').map((x) => x[0].toUpperCase() + x.slice(1)).join(' ')).join(', ')}</span></li>`).join('');
 }
 
 function renderForecast() {
@@ -901,7 +941,7 @@ function renderForecast() {
   setText('forecast-projects-title', `Шесть проектов: итог ${fcGen(months.cur)} и прогноз ${fcGen(months.next)}`);
   setText('forecast-method-note', `Досчёт ${fcGen(months.cur)} и три прогноза ${fcGen(months.next)}; каждый сценарий сверяем с фактом отдельно.`);
   const factDays = Number(meta.currentFactDays ?? meta.asOf?.slice(8, 10));
-  const veryEarly = meta.status !== 'awaiting-november' && meta.asOf?.slice(0, 7) === (meta.currentMonth || '2026-11') && factDays > 0 && factDays < 7;
+  const veryEarly = meta.status === 'ready' && meta.asOf?.slice(0, 7) === (meta.currentMonth || meta.asOf?.slice(0, 7)) && factDays > 0 && factDays < 7;
   const warning = document.getElementById('forecast-warning');
   if (warning) {
     warning.hidden = !veryEarly;
@@ -943,6 +983,7 @@ function renderForecast() {
   $('#forecast-directions').innerHTML = fc.directions.map((row) => forecastRow(row, false)).join('') + forecastRow(fc.directionsTotal, true);
   const list = $('#forecast-method-list');
   list.innerHTML = meta.methodology.map((item) => `<li>${item}</li>`).join('');
+  renderForecastIntegrations(meta);
 }
 
 function currentMediaSeries() {
@@ -1111,7 +1152,7 @@ function loadUrlState() {
   };
   const leads = context('leads'), media = context('media');
   const dateParam = (source, name) => /^\d{4}-\d{2}-\d{2}$/.test(source.get(name) || '') ? source.get(name) : null;
-  if (['leads', 'products-sf-cd', 'media', 'updates', 'updates-all', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
+  if (['leads', 'products-sf-cd', 'integrations', 'media', 'updates', 'updates-all', 'experiment', 'forecast'].includes(params.get('view'))) state.view = params.get('view');
   if (state.data.leads.entities.some((item) => item.id === leads.get('lead'))) state.leadId = leads.get('lead');
   if (leads.get('page')) {
     const entity = state.data.leads.entities.find((item) => item.id === state.leadId);
@@ -1139,6 +1180,7 @@ function updateUrl() {
     else (window.DashboardUrl?.replace || history.replaceState.bind(history))(null, '', `${location.pathname}?view=products-sf-cd${location.hash}`);
     return;
   }
+  if (state.view === 'integrations') { if (window.updateIntegrationsUrl) window.updateIntegrationsUrl(); return; }
   if (state.view === 'updates-all') { if (window.updateUpdatesAllUrl) window.updateUpdatesAllUrl(); return; }
   if (state.view === 'updates') { if (window.updateUpdatesUrl) window.updateUpdatesUrl(); return; }
   if (state.view === 'experiment') { if (window.updateExperimentUrl) window.updateExperimentUrl(); return; }
@@ -1171,7 +1213,7 @@ function activateView(target, syncUrl = true) {
   state.view = target;
   if (state.data?.meta?.asOf) $('#as-of').textContent = `Данные по ${formatDate(state.data.meta.asOf)}`;
   const isMedia = ['media', 'updates', 'updates-all'].includes(target);
-  const isLeads = ['leads', 'products-sf-cd'].includes(target);
+  const isLeads = ['leads', 'products-sf-cd', 'integrations'].includes(target);
   document.querySelectorAll('.section-tabs .tab-button').forEach((button) => {
     const active = button.dataset.target === (isMedia ? 'media' : isLeads ? 'leads' : target);
     button.classList.toggle('active', active);
@@ -1191,6 +1233,7 @@ function activateView(target, syncUrl = true) {
   });
   $('#tooltip').classList.remove('visible');
   if (target === 'products-sf-cd') { if (window.ensureProductsSfCd) window.ensureProductsSfCd(); }
+  else if (target === 'integrations') { if (window.ensureIntegrations) window.ensureIntegrations(); }
   else if (target === 'updates-all') { if (window.ensureUpdatesAll) window.ensureUpdatesAll(); }
   else if (target === 'updates') { if (window.ensureUpdates) window.ensureUpdates(); else if (window.renderUpdates) window.renderUpdates(); }
   else if (target === 'experiment') { if (window.renderExperiment) window.renderExperiment(); }

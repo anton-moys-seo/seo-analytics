@@ -7,9 +7,10 @@
   <meta name="robots" content="noindex, nofollow, noarchive">
   <title>SEO: лиды и медиатрафик</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20261122-r1">
+  <link rel="stylesheet" href="styles.css?v=20261126-2">
   <link rel="stylesheet" href="updates-all.css?v=20261122-r1">
   <link rel="stylesheet" href="products-sf-cd.css?v=20261103-1">
+  <link rel="stylesheet" href="integrations.css?v=20261126-3">
   <link rel="stylesheet" href="ux-shell.css?v=20261122-r1">
   <link rel="stylesheet" href="media-plan.css?v=20261122-r1">
   <link rel="stylesheet" href="narrative.css?v=20261122-r1">
@@ -43,10 +44,20 @@
       <button class="tab-button" data-target="media" type="button">Медиатрафик</button>
       <button class="tab-button" data-target="experiment" type="button">Эксперимент: вайбкодинг</button>
     </nav>
+    <script>
+      // До загрузки forecast.json: прогноз строится на месяц после месяца последнего полного дня (вчера).
+      (function () {
+        var names = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+        var day = new Date(Date.now() - 864e5);
+        var button = document.querySelector('.section-tabs [data-target="forecast"]');
+        if (button) button.textContent = 'Прогноз: ' + names[(day.getMonth() + 1) % 12];
+      })();
+    </script>
 
     <nav id="leads-navigation" class="nested-tabs" aria-label="Лиды" hidden>
       <button class="nested-tab" data-target="leads" type="button">План и факт</button>
       <button class="nested-tab" data-target="products-sf-cd" type="button">Продукты SF/CD</button>
+      <button class="nested-tab" data-target="integrations" type="button">Интеграции</button>
       <a class="nested-tab-link" href="plan-2027.html" data-keep-hash>План 2027: SF и CD →</a>
     </nav>
 
@@ -62,6 +73,11 @@
     <section id="products-sf-cd" class="dashboard-section" hidden aria-labelledby="products-sf-cd-heading">
       <div class="section-heading"><div><p class="eyebrow">SEO-продукты</p><h2 id="products-sf-cd-heading">Продукты SF/CD</h2></div></div>
       <div class="empty" role="status">Данные отчёта ещё не подготовлены.</div>
+    </section>
+
+    <section id="integrations" class="dashboard-section" hidden aria-labelledby="integrations-heading">
+      <div class="section-heading"><div><p class="eyebrow">Блогерские интеграции</p><h2 id="integrations-heading">Интеграции</h2></div></div>
+      <div class="empty" role="status">Данные раздела ещё не загружены.</div>
     </section>
 
     <section id="leads" class="dashboard-section active" aria-labelledby="leads-heading">
@@ -216,6 +232,12 @@
         <p id="forecast-warning-text" style="margin:8px 0 0"></p>
       </aside>
       <div id="forecast-kpis" class="mini-kpis" aria-live="polite"></div>
+      <aside id="forecast-integrations" class="fc-integrations" role="note" hidden>
+        <strong id="forecast-integrations-title">Очистка от интеграций</strong>
+        <p id="forecast-integrations-text"></p>
+        <div id="forecast-integrations-effect"></div>
+        <ul id="forecast-integrations-list"></ul>
+      </aside>
 
       <article class="table-card">
         <div class="card-heading">
@@ -610,15 +632,16 @@
     <span>Skillbox Analytics</span>
     <span>Power BI · Яндекс Метрика</span>
   </footer>
-  <script src="ux-shell.js?v=20261122-r1" defer></script>
+  <script src="ux-shell.js?v=20261126-1" defer></script>
   <script src="experiment.js?v=20261122-r1" defer></script>
   <script src="xlsx-export.js?v=20261002-1" defer></script>
   <script src="updates.js?v=20261122-r1" defer></script>
   <script src="updates-all.js?v=20261122-r1" defer></script>
   <script src="products_model.js?v=20261102-2" defer></script>
   <script src="products-sf-cd.js?v=20261122-r1" defer></script>
+  <script src="integrations.js?v=20261126-3" defer></script>
   <script src="media-plan.js?v=20261122-r1" defer></script>
-  <script src="app.js?v=20261122-r1" defer></script>
+  <script src="app.js?v=20261126-2" defer></script>
   <script src="round3.js?v=20261122-r1" defer></script>
 </body>
 </html>

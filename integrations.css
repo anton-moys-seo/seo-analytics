@@ -1,0 +1,40 @@
+/* Вкладка «Интеграции» — на базе классов дашборда (chart-card, mini-kpis, table-wrap). Без теней. */
+#integrations .in-intro { max-width: 820px; margin: 8px 0 0; font-size: 16px; line-height: 1.5; }
+#integrations .in-filters { margin-bottom: 24px; }
+#integrations .in-kpis { margin: 0 0 24px; }
+#integrations .in-table td { vertical-align: top; line-height: 1.4; }
+#integrations .in-table td:first-child { white-space: nowrap; }
+#integrations .in-table th { vertical-align: bottom; }
+#integrations .in-table td:last-child { min-width: 150px; }
+#integrations .in-chains td:first-child { white-space: normal; min-width: 200px; }
+#integrations .in-sub { display: block; margin-top: 2px; font-size: 12px; color: #5C5C5C; font-weight: 400; }
+#integrations .in-muted { color: #5C5C5C; font-size: 13px; }
+#integrations .in-pct { font-size: 12px; color: #5C5C5C; }
+#integrations .in-up { color: #0A7A3B; }
+#integrations .in-flat { color: #000000; }
+#integrations .in-link { all: unset; cursor: pointer; display: block; border-radius: 8px; }
+#integrations .in-link:focus-visible, #integrations tr[data-chain]:focus-visible { outline: 3px solid #3D3BFF; outline-offset: 2px; }
+#integrations tr[data-chain] { cursor: pointer; }
+#integrations tr[data-chain]:hover td { background: #ECECEC; }
+#integrations tr.in-active td { background: #E3E3FF; }
+#integrations .in-chart { width: 100%; min-height: 280px; }
+#integrations .in-grid { stroke: #E2E2E2; stroke-width: 1; }
+#integrations .in-axis { font-size: 12px; fill: #5C5C5C; }
+#integrations .in-axis-strong { fill: #000000; font-weight: 600; }
+#integrations .in-bar { fill: #3D3BFF; }
+#integrations .in-release { fill: #F2E9FF; }
+#integrations .in-base { stroke: #000000; stroke-width: 1.5; stroke-dasharray: 6 5; }
+#integrations .in-legend-bar { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #3D3BFF; margin-right: 6px; vertical-align: -1px; }
+#integrations .in-legend-release { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #F2E9FF; border: 1px solid #C9B6FF; margin-right: 6px; vertical-align: -1px; }
+#integrations .in-method ol { margin: 0; padding-left: 20px; line-height: 1.55; font-size: 14px; }
+#integrations .in-method li + li { margin-top: 6px; }
+@media (max-width: 640px) {
+  #integrations .in-table, #integrations .in-table tbody, #integrations .in-table tr, #integrations .in-table td { display: block; width: 100%; }
+  #integrations .in-table thead { display: none; }
+  #integrations .in-table tr { background: #F5F5F5; border-radius: 12px; margin: 0 0 10px; padding: 8px 0; }
+  #integrations .in-table td, #integrations .in-table td:first-child, #integrations .in-table td:last-child { border-radius: 0; padding: 6px 14px; background: transparent; white-space: normal; min-width: 0; }
+  #integrations .in-table td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; color: #5C5C5C; font-weight: 500; margin-bottom: 2px; }
+  #integrations .in-table td:first-child { font-weight: 600; }
+  #integrations tr.in-active { outline: 2px solid #3D3BFF; }
+}
+#integrations .in-pct { white-space: nowrap; }
