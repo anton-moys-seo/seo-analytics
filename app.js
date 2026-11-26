@@ -903,6 +903,13 @@ function ensureForecast(retry = false) {
   return forecastRequest;
 }
 
+function ruPlural(n, one, few, many) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b === 1) return one;
+  return b >= 2 && b <= 4 ? few : many;
+}
+
 function renderForecastIntegrations(meta) {
   const box = document.getElementById('forecast-integrations');
   if (!box) return;
@@ -918,7 +925,7 @@ function renderForecastIntegrations(meta) {
     return;
   }
   const total = windows.reduce((s, w) => s + (w.leadsInTrendWindow ?? w.leads), 0);
-  $('#forecast-integrations-text').textContent = `Ставку последних 7 дней и тренд считаем без всплесков SEO-лидов от прошедших блогерских интеграций — прогноз показывает уровень без новых роликов. Из рядов вычтено ${formatInt(Math.round(total))} лидов за ${windows.length} ${windows.length === 1 ? 'окно' : windows.length < 5 ? 'окна' : 'окон'}; факт месяцев в таблицах не меняется. Подробности — на вкладке «Интеграции».`;
+  $('#forecast-integrations-text').textContent = `Ставку последних 7 дней и тренд считаем без всплесков SEO-лидов от прошедших блогерских интеграций — прогноз показывает уровень без новых роликов. Из рядов вычтено ${formatInt(Math.round(total))} ${ruPlural(Math.round(total), 'лид', 'лида', 'лидов')} за ${windows.length} ${ruPlural(windows.length, 'окно', 'окна', 'окон')}; факт месяцев в таблицах не меняется. Подробности — на вкладке «Интеграции».`;
   const changed = [...(state.forecast.projects || []), ...(state.forecast.directions || [])].filter((r) => r.cleaned && r.cleaned.nextTrendRaw != null && (r.cleaned.nextTrendRaw !== r.nextTrend || r.cleaned.nextSeasonalRaw !== r.nextSeasonal));
   const arrow = (a, b) => (a === b ? formatInt(b) : `${formatInt(a)} → <b>${formatInt(b)}</b>`);
   $('#forecast-integrations-effect').innerHTML = changed.length ? '<p>Что изменилось в прогнозе:</p><ul>' + changed.map((r) => `<li>${r.name}: тренд ${arrow(r.cleaned.nextTrendRaw, r.nextTrend)}, сезонность ${arrow(r.cleaned.nextSeasonalRaw, r.nextSeasonal)}${r.nextDemand != null && r.cleaned.nextDemandRaw != null ? `, спрос ${arrow(r.cleaned.nextDemandRaw, r.nextDemand)}` : ''}</li>`).join('') + '</ul><p>Окна, которые вычли:</p>' : '';
